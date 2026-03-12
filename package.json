@@ -1,5 +1,5 @@
 {
-  "name": "zeropress-theme-validator",
+  "name": "@zeropress/theme-validator",
   "version": "0.1.0",
   "description": "Shared ZeroPress theme validation core",
   "type": "module",

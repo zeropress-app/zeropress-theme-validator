@@ -1,8 +1,8 @@
-# zeropress-theme-validator
+# @zeropress/theme-validator
 
-![npm](https://img.shields.io/npm/v/zeropress-theme-validator)
-![license](https://img.shields.io/npm/l/zeropress-theme-validator)
-![node](https://img.shields.io/node/v/zeropress-theme-validator)
+![npm](https://img.shields.io/npm/v/%40zeropress%2Ftheme-validator)
+![license](https://img.shields.io/npm/l/%40zeropress%2Ftheme-validator)
+![node](https://img.shields.io/node/v/%40zeropress%2Ftheme-validator)
 
 Shared validation core for ZeroPress theme ZIP archives and directory-backed file maps.
 
@@ -19,7 +19,7 @@ It implements the current runtime v0.1 validation rules defined in [ZeroPress Th
 ## Install
 
 ```bash
-npm install zeropress-theme-validator
+npm install @zeropress/theme-validator
 ```
 
 ---
@@ -32,7 +32,7 @@ import {
   parseThemeManifestFromZip,
   validateThemeFiles,
   validateThemeZip,
-} from 'zeropress-theme-validator';
+} from '@zeropress/theme-validator';
 ```
 
 ---
@@ -56,7 +56,7 @@ Example:
 
 ```js
 import { readFile } from 'node:fs/promises';
-import { validateThemeZip } from 'zeropress-theme-validator';
+import { validateThemeZip } from '@zeropress/theme-validator';
 
 const buffer = await readFile('./dist/my-theme-1.0.0.zip');
 const result = await validateThemeZip(buffer);
