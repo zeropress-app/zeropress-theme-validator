@@ -58,6 +58,21 @@ test('validateThemeZip accepts a valid single-folder zip', async () => {
   assert.equal(result.errors.length, 0);
 });
 
+test('validateThemeZip ignores Finder macOS metadata files', async () => {
+  const zip = new JSZip();
+  for (const [filePath, content] of Object.entries(createValidThemeFiles())) {
+    zip.file(`test2/${filePath}`, content);
+    zip.file(`__MACOSX/test2/._${path.basename(filePath)}`, 'metadata');
+  }
+  zip.file('__MACOSX/._test2', 'metadata');
+
+  const result = await validateThemeZip(await zip.generateAsync({ type: 'uint8array' }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.warnings.some((issue) => issue.code === 'MACOS_METADATA_IGNORED'), true);
+});
+
 test('validateThemeZip rejects multi-root zips with nested theme.json', async () => {
   const buffer = await createZip({
     ...createValidThemeFiles(),

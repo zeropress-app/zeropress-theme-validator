@@ -6,6 +6,12 @@ const REQUIRED_FILES = ['theme.json', 'assets/style.css'];
 const ALLOWED_SLOTS = new Set(['content', 'header', 'footer', 'meta']);
 const COMMENTS_PLACEHOLDER = '{{post.comments_html}}';
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const MACOS_METADATA_WARNING = issue(
+  'MACOS_METADATA_IGNORED',
+  'theme.zip',
+  'macOS metadata files (__MACOSX, ._*) were ignored',
+  'warning'
+);
 
 export function detectBasePrefix(filePaths) {
   const analysis = analyzeZipLayout(filePaths);
@@ -21,7 +27,7 @@ export async function parseThemeManifestFromZip(buffer) {
     throw new Error(analysis.error);
   }
 
-  const themeJsonFile = zip.file(`${analysis.basePrefix}theme.json`);
+  const themeJsonFile = zip.file(analysis.zipPathByRelativePath.get('theme.json'));
 
   if (!themeJsonFile) {
     throw new Error('Theme package must contain theme.json at root (or a single top-level folder root)');
@@ -54,18 +60,14 @@ export async function validateThemeZip(buffer, options = {}) {
       errors: [issue('INVALID_ZIP_ROOT', 'theme.zip', analysis.error, 'error')],
       warnings: [],
       manifest: undefined,
-      checkedFiles: filePaths.length,
+      checkedFiles: analysis.checkedFiles,
     };
   }
 
   await Promise.all(
-    filePaths.map(async (filePath) => {
-      const normalizedPath = normalizePath(filePath);
-      const relativePath = analysis.basePrefix && normalizedPath.startsWith(analysis.basePrefix)
-        ? normalizedPath.slice(analysis.basePrefix.length)
-        : normalizedPath;
-
-      const file = zip.file(filePath);
+    analysis.normalizedFilePaths.map(async (normalizedPath) => {
+      const relativePath = analysis.relativePathByZipPath.get(normalizedPath) || normalizedPath;
+      const file = zip.file(normalizedPath);
       if (!file || file.dir) {
         return;
       }
@@ -76,7 +78,8 @@ export async function validateThemeZip(buffer, options = {}) {
 
   return validateThemeFiles(files, {
     ...options,
-    checkedFiles: filePaths.length,
+    checkedFiles: analysis.checkedFiles,
+    initialWarnings: analysis.ignoredMacOsMetadata ? [MACOS_METADATA_WARNING] : [],
   });
 }
 
@@ -84,34 +87,45 @@ function analyzeZipLayout(filePaths) {
   const normalized = [...filePaths]
     .map((filePath) => normalizePath(String(filePath)))
     .filter(Boolean);
+  const normalizedWithoutMetadata = normalized.filter((filePath) => !isIgnorableMacOsMetadata(filePath));
 
-  if (normalized.includes('theme.json')) {
-    return { basePrefix: '', error: null };
+  if (normalizedWithoutMetadata.includes('theme.json')) {
+    return createZipLayoutAnalysis(normalizedWithoutMetadata, '', normalizedWithoutMetadata.length !== normalized.length);
   }
 
-  const topLevels = new Set(normalized.map((filePath) => filePath.split('/')[0]).filter(Boolean));
+  const topLevels = new Set(normalizedWithoutMetadata.map((filePath) => filePath.split('/')[0]).filter(Boolean));
   if (topLevels.size === 1) {
     const folder = [...topLevels][0];
-    if (normalized.includes(`${folder}/theme.json`)) {
-      return { basePrefix: `${folder}/`, error: null };
+    if (normalizedWithoutMetadata.includes(`${folder}/theme.json`)) {
+      return createZipLayoutAnalysis(
+        normalizedWithoutMetadata,
+        `${folder}/`,
+        normalizedWithoutMetadata.length !== normalized.length
+      );
     }
   }
 
-  const nestedThemeJson = normalized.filter((filePath) => filePath.endsWith('/theme.json') && filePath.split('/').length === 2);
+  const nestedThemeJson = normalizedWithoutMetadata.filter((filePath) => filePath.endsWith('/theme.json') && filePath.split('/').length === 2);
   if (nestedThemeJson.length > 0) {
     return {
       basePrefix: '',
       error: 'Theme package must be root-flat or wrapped in a single top-level folder',
+      normalizedFilePaths: normalizedWithoutMetadata,
+      checkedFiles: normalizedWithoutMetadata.length,
     };
   }
 
-  return { basePrefix: '', error: null };
+  return createZipLayoutAnalysis(
+    normalizedWithoutMetadata,
+    '',
+    normalizedWithoutMetadata.length !== normalized.length
+  );
 }
 
 export async function validateThemeFiles(fileMap, options = {}) {
   const files = normalizeFileMap(fileMap);
   const errors = [];
-  const warnings = [];
+  const warnings = [...(options.initialWarnings || [])];
   const noJsCheck = options.noJsCheck === true;
 
   validatePathSafety(options.pathEntries || [], errors);
@@ -277,6 +291,43 @@ function validateCommentsPlaceholderGuidance(templateContents, warnings) {
       'warning'
     ));
   }
+}
+
+function createZipLayoutAnalysis(normalizedFilePaths, basePrefix, ignoredMacOsMetadata) {
+  const relativePathByZipPath = new Map();
+  const zipPathByRelativePath = new Map();
+
+  for (const normalizedPath of normalizedFilePaths) {
+    const relativePath = basePrefix && normalizedPath.startsWith(basePrefix)
+      ? normalizedPath.slice(basePrefix.length)
+      : normalizedPath;
+
+    relativePathByZipPath.set(normalizedPath, relativePath);
+    zipPathByRelativePath.set(relativePath, normalizedPath);
+  }
+
+  return {
+    basePrefix,
+    error: null,
+    ignoredMacOsMetadata,
+    normalizedFilePaths,
+    relativePathByZipPath,
+    zipPathByRelativePath,
+    checkedFiles: normalizedFilePaths.length,
+  };
+}
+
+function isIgnorableMacOsMetadata(filePath) {
+  const normalizedPath = normalizePath(filePath);
+  if (!normalizedPath) {
+    return false;
+  }
+
+  if (normalizedPath.startsWith('__MACOSX/')) {
+    return true;
+  }
+
+  return normalizedPath.split('/').some((segment) => segment.startsWith('._'));
 }
 
 function validatePathSafety(pathEntries, errors) {
