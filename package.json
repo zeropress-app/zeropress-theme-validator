@@ -1,0 +1,27 @@
+{
+  "name": "zeropress-theme-validator",
+  "version": "0.1.0",
+  "description": "Shared ZeroPress theme validation core",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "types": "./src/index.d.ts",
+  "files": [
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zeropress-app/zeropress-theme-validator.git"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}
