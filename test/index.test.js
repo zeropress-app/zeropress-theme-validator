@@ -15,8 +15,11 @@ function createValidThemeFiles() {
   return {
     'theme.json': JSON.stringify({
       name: 'Test Theme',
+      namespace: 'test-studio',
+      slug: 'test-theme',
       version: '1.0.0',
-      author: 'ZeroPress',
+      license: 'MIT',
+      runtime: '0.2',
       description: 'A test theme',
     }),
     'layout.html': '<main>{{slot:content}}</main>',
@@ -104,8 +107,11 @@ test('parseThemeManifestFromZip rejects multi-root zips with nested theme.json',
 test('parseThemeManifestFromZip returns manifest fields', async () => {
   const manifest = await parseThemeManifestFromZip(await createZip(createValidThemeFiles()));
   assert.equal(manifest.name, 'Test Theme');
+  assert.equal(manifest.namespace, 'test-studio');
+  assert.equal(manifest.slug, 'test-theme');
   assert.equal(manifest.version, '1.0.0');
-  assert.equal(manifest.author, 'ZeroPress');
+  assert.equal(manifest.license, 'MIT');
+  assert.equal(manifest.runtime, '0.2');
 });
 
 test('validateThemeZip reports missing theme.json', async () => {
@@ -134,17 +140,85 @@ test('validateThemeZip reports missing required files', async () => {
   assert.equal(result.errors.some((issue) => issue.path === 'post.html'), true);
 });
 
-test('validateThemeZip reports invalid semver and missing author', async () => {
+test('validateThemeZip reports invalid semver', async () => {
   const files = createValidThemeFiles();
   files['theme.json'] = JSON.stringify({
     name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
     version: '1.0',
-    author: '',
+    license: 'MIT',
+    runtime: '0.2',
   });
   const result = await validateThemeZip(await createZip(files));
   assert.equal(result.ok, false);
   assert.equal(result.errors.some((issue) => issue.code === 'INVALID_SEMVER'), true);
-  assert.equal(result.errors.some((issue) => issue.message.includes('author')), true);
+});
+
+test('validateThemeZip accepts a valid v0.2 manifest without author', async () => {
+  const result = await validateThemeZip(await createZip(createValidThemeFiles()));
+  assert.equal(result.ok, true);
+  assert.equal(result.manifest?.author, undefined);
+});
+
+test('validateThemeZip requires license', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    runtime: '0.2',
+  });
+  const result = await validateThemeZip(await createZip(files));
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.message.includes("'license'")), true);
+});
+
+test('validateThemeZip rejects invalid license values', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'ISC',
+    runtime: '0.2',
+  });
+  const result = await validateThemeZip(await createZip(files));
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_LICENSE'), true);
+});
+
+test('validateThemeZip requires runtime 0.2', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.1',
+  });
+  const result = await validateThemeZip(await createZip(files));
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_RUNTIME_VERSION'), true);
+});
+
+test('validateThemeZip rejects invalid namespace and slug manifest fields', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'Bad_Namespace',
+    slug: 'bad--slug',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.2',
+  });
+  const result = await validateThemeZip(await createZip(files));
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_NAMESPACE'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_SLUG'), true);
 });
 
 test('validateThemeZip reports invalid layout slot usage', async () => {

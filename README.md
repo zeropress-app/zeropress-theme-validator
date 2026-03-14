@@ -12,7 +12,7 @@ This package is the single source of truth for runtime theme validation used by:
 - `backend_api_v2`
 - `themes.zeropress.org-api`
 
-It implements the current runtime v0.1 validation rules defined in [ZeroPress Theme Runtime Spec v0.1](https://zeropress.dev/spec/theme-runtime-v0.1.html).
+It implements the current runtime v0.2 validation rules defined in [ZeroPress Theme Runtime Spec v0.2](https://zeropress.dev/spec/theme-runtime-v0.2.html).
 
 ---
 
@@ -73,8 +73,11 @@ Parses and validates only the theme manifest from a ZIP and returns:
 ```js
 {
   name: 'My Theme',
+  namespace: 'my-studio',
+  slug: 'my-theme',
   version: '1.0.0',
-  author: 'Author Name',
+  license: 'MIT',
+  runtime: '0.2',
   description: 'Optional description'
 }
 ```
@@ -142,8 +145,11 @@ For invalid or mixed multi-root layouts it returns `''`. Use `validateThemeZip()
   warnings: [],
   manifest: {
     name: 'My Theme',
+    namespace: 'my-studio',
+    slug: 'my-theme',
     version: '1.0.0',
-    author: 'Author Name',
+    license: 'MIT',
+    runtime: '0.2',
     description: 'Optional'
   },
   checkedFiles: 6
@@ -171,6 +177,10 @@ Issue objects use this shape:
 - Missing required templates: `layout.html`, `index.html`, `post.html`, `page.html`
 - Missing `assets/style.css`
 - Invalid semver in `theme.json.version`
+- Missing or invalid `theme.json.namespace`
+- Missing or invalid `theme.json.slug`
+- Missing or invalid `theme.json.license`
+- Missing or invalid `theme.json.runtime`
 - `layout.html` missing or duplicating `{{slot:content}}`
 - Unknown slot names
 - Nested slot expressions
@@ -198,7 +208,7 @@ Issue objects use this shape:
 
 - [zeropress-theme](https://www.npmjs.com/package/zeropress-theme)
 - [create-zeropress-theme](https://www.npmjs.com/package/create-zeropress-theme)
-- [ZeroPress Theme Runtime Spec v0.1](https://zeropress.dev/spec/theme-runtime-v0.1.html)
+- [ZeroPress Theme Runtime Spec v0.2](https://zeropress.dev/spec/theme-runtime-v0.2.html)
 
 ---
 

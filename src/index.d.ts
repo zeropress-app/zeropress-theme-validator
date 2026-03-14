@@ -7,8 +7,12 @@ export interface ValidationIssue {
 
 export interface ThemeManifest {
   name: string;
+  namespace: string;
+  slug: string;
   version: string;
-  author: string;
+  license: 'MIT' | 'Apache-2.0' | 'BSD-3-Clause' | 'GPL-3.0-only' | 'GPL-3.0-or-later';
+  runtime: '0.2';
+  author?: string;
   description?: string;
 }
 

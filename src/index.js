@@ -6,6 +6,15 @@ const REQUIRED_FILES = ['theme.json', 'assets/style.css'];
 const ALLOWED_SLOTS = new Set(['content', 'header', 'footer', 'meta']);
 const COMMENTS_PLACEHOLDER = '{{post.comments_html}}';
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const NAMESPACE_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const LICENSES = new Set([
+  'MIT',
+  'Apache-2.0',
+  'BSD-3-Clause',
+  'GPL-3.0-only',
+  'GPL-3.0-or-later',
+]);
 const MACOS_METADATA_WARNING = issue(
   'MACOS_METADATA_IGNORED',
   'theme.zip',
@@ -215,11 +224,14 @@ function validateManifest(themeJson) {
 
   const manifest = {
     name: '',
+    namespace: '',
+    slug: '',
     version: '',
-    author: '',
+    license: '',
+    runtime: '',
   };
 
-  for (const key of ['name', 'version', 'author']) {
+  for (const key of ['name', 'namespace', 'slug', 'version', 'license', 'runtime']) {
     if (typeof themeJson[key] !== 'string' || themeJson[key].trim() === '') {
       errors.push(issue('INVALID_THEME_METADATA', 'theme.json', `theme.json field '${key}' must be a non-empty string`, 'error'));
       continue;
@@ -229,6 +241,47 @@ function validateManifest(themeJson) {
 
   if (typeof themeJson.version === 'string' && !SEMVER_REGEX.test(themeJson.version.trim())) {
     errors.push(issue('INVALID_SEMVER', 'theme.json', 'Theme version must follow semantic versioning (e.g. 1.0.0)', 'error'));
+  }
+
+  if (typeof themeJson.runtime === 'string' && themeJson.runtime.trim() !== '0.2') {
+    errors.push(issue('INVALID_RUNTIME_VERSION', 'theme.json', "theme.json field 'runtime' must be '0.2'", 'error'));
+  }
+
+  if (typeof themeJson.license === 'string' && !LICENSES.has(themeJson.license.trim())) {
+    errors.push(issue(
+      'INVALID_LICENSE',
+      'theme.json',
+      "theme.json field 'license' must be one of: MIT, Apache-2.0, BSD-3-Clause, GPL-3.0-only, GPL-3.0-or-later",
+      'error'
+    ));
+  }
+
+  if (typeof themeJson.namespace === 'string') {
+    const namespace = themeJson.namespace.trim();
+    if (!NAMESPACE_REGEX.test(namespace) || namespace.length < 3 || namespace.length > 24) {
+      errors.push(issue(
+        'INVALID_NAMESPACE',
+        'theme.json',
+        "theme.json field 'namespace' must follow ZeroPress namespace rules (lowercase letters, digits, hyphens; 3-24 chars)",
+        'error'
+      ));
+    }
+  }
+
+  if (typeof themeJson.slug === 'string') {
+    const slug = themeJson.slug.trim();
+    if (!SLUG_REGEX.test(slug) || slug.length < 3 || slug.length > 32) {
+      errors.push(issue(
+        'INVALID_SLUG',
+        'theme.json',
+        "theme.json field 'slug' must follow ZeroPress slug rules (lowercase letters, digits, hyphens; 3-32 chars)",
+        'error'
+      ));
+    }
+  }
+
+  if (typeof themeJson.author === 'string' && themeJson.author.trim() !== '') {
+    manifest.author = themeJson.author.trim();
   }
 
   if (typeof themeJson.description === 'string' && themeJson.description.trim() !== '') {
