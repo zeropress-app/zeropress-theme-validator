@@ -221,6 +221,25 @@ test('validateThemeZip rejects invalid namespace and slug manifest fields', asyn
   assert.equal(result.errors.some((issue) => issue.code === 'INVALID_SLUG'), true);
 });
 
+test('validateThemeZip rejects manifest fields that exceed max lengths', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'N'.repeat(81),
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.2',
+    author: 'A'.repeat(81),
+    description: 'D'.repeat(281),
+  });
+  const result = await validateThemeZip(await createZip(files));
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_NAME'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_AUTHOR'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_DESCRIPTION'), true);
+});
+
 test('validateThemeZip reports invalid layout slot usage', async () => {
   const files = createValidThemeFiles();
   files['layout.html'] = '<main>{{slot:content}}{{slot:content}}</main>';

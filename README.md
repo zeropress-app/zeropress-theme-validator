@@ -181,6 +181,9 @@ Issue objects use this shape:
 - Missing or invalid `theme.json.slug`
 - Missing or invalid `theme.json.license`
 - Missing or invalid `theme.json.runtime`
+- `theme.json.name` longer than 80 characters
+- `theme.json.author` longer than 80 characters
+- `theme.json.description` longer than 280 characters
 - `layout.html` missing or duplicating `{{slot:content}}`
 - Unknown slot names
 - Nested slot expressions

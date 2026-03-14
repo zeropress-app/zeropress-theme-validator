@@ -15,6 +15,9 @@ const LICENSES = new Set([
   'GPL-3.0-only',
   'GPL-3.0-or-later',
 ]);
+const NAME_MAX_LENGTH = 80;
+const AUTHOR_MAX_LENGTH = 80;
+const DESCRIPTION_MAX_LENGTH = 280;
 const MACOS_METADATA_WARNING = issue(
   'MACOS_METADATA_IGNORED',
   'theme.zip',
@@ -239,6 +242,15 @@ function validateManifest(themeJson) {
     manifest[key] = themeJson[key].trim();
   }
 
+  if (typeof themeJson.name === 'string' && themeJson.name.trim().length > NAME_MAX_LENGTH) {
+    errors.push(issue(
+      'INVALID_NAME',
+      'theme.json',
+      `theme.json field 'name' must be at most ${NAME_MAX_LENGTH} characters`,
+      'error'
+    ));
+  }
+
   if (typeof themeJson.version === 'string' && !SEMVER_REGEX.test(themeJson.version.trim())) {
     errors.push(issue('INVALID_SEMVER', 'theme.json', 'Theme version must follow semantic versioning (e.g. 1.0.0)', 'error'));
   }
@@ -281,11 +293,31 @@ function validateManifest(themeJson) {
   }
 
   if (typeof themeJson.author === 'string' && themeJson.author.trim() !== '') {
-    manifest.author = themeJson.author.trim();
+    const author = themeJson.author.trim();
+    if (author.length > AUTHOR_MAX_LENGTH) {
+      errors.push(issue(
+        'INVALID_AUTHOR',
+        'theme.json',
+        `theme.json field 'author' must be at most ${AUTHOR_MAX_LENGTH} characters`,
+        'error'
+      ));
+    } else {
+      manifest.author = author;
+    }
   }
 
   if (typeof themeJson.description === 'string' && themeJson.description.trim() !== '') {
-    manifest.description = themeJson.description.trim();
+    const description = themeJson.description.trim();
+    if (description.length > DESCRIPTION_MAX_LENGTH) {
+      errors.push(issue(
+        'INVALID_DESCRIPTION',
+        'theme.json',
+        `theme.json field 'description' must be at most ${DESCRIPTION_MAX_LENGTH} characters`,
+        'error'
+      ));
+    } else {
+      manifest.description = description;
+    }
   }
 
   return { errors, manifest: errors.length > 0 ? undefined : manifest };
