@@ -5,8 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import JSZip from 'jszip';
 import {
+  DEFAULT_RUNTIME,
   detectBasePrefix,
   parseThemeManifestFromZip,
+  validateNamespace,
+  validateSlug,
+  validateThemeManifest,
   validateThemeFiles,
   validateThemeZip,
 } from '../src/index.js';
@@ -159,6 +163,28 @@ test('validateThemeZip accepts a valid v0.2 manifest without author', async () =
   const result = await validateThemeZip(await createZip(createValidThemeFiles()));
   assert.equal(result.ok, true);
   assert.equal(result.manifest?.author, undefined);
+  assert.equal(result.manifest?.runtime, DEFAULT_RUNTIME);
+});
+
+test('validateNamespace and validateSlug share runtime rules', () => {
+  assert.equal(validateNamespace('my-company'), 'my-company');
+  assert.equal(validateSlug('mytheme1'), 'mytheme1');
+  assert.throws(() => validateNamespace('My Company'), /Namespace must use lowercase/);
+  assert.throws(() => validateSlug('My Theme'), /Theme slug must use lowercase/);
+});
+
+test('validateThemeManifest validates manifest-only input', () => {
+  const result = validateThemeManifest({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.2',
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.manifest?.slug, 'test-theme');
 });
 
 test('validateThemeZip requires license', async () => {

@@ -6,18 +6,24 @@ const REQUIRED_FILES = ['theme.json', 'assets/style.css'];
 const ALLOWED_SLOTS = new Set(['content', 'header', 'footer', 'meta']);
 const COMMENTS_PLACEHOLDER = '{{post.comments_html}}';
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
-const NAMESPACE_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const LICENSES = new Set([
+export const NAMESPACE_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const ALLOWED_LICENSES = [
   'MIT',
   'Apache-2.0',
   'BSD-3-Clause',
   'GPL-3.0-only',
   'GPL-3.0-or-later',
-]);
-const NAME_MAX_LENGTH = 80;
-const AUTHOR_MAX_LENGTH = 80;
-const DESCRIPTION_MAX_LENGTH = 280;
+];
+const LICENSES = new Set(ALLOWED_LICENSES);
+export const DEFAULT_RUNTIME = '0.2';
+export const NAMESPACE_MIN_LENGTH = 3;
+export const NAMESPACE_MAX_LENGTH = 24;
+export const SLUG_MIN_LENGTH = 3;
+export const SLUG_MAX_LENGTH = 32;
+export const NAME_MAX_LENGTH = 80;
+export const AUTHOR_MAX_LENGTH = 80;
+export const DESCRIPTION_MAX_LENGTH = 280;
 const MACOS_METADATA_WARNING = issue(
   'MACOS_METADATA_IGNORED',
   'theme.zip',
@@ -28,6 +34,31 @@ const MACOS_METADATA_WARNING = issue(
 export function detectBasePrefix(filePaths) {
   const analysis = analyzeZipLayout(filePaths);
   return analysis.basePrefix;
+}
+
+export function validateNamespace(value) {
+  const normalized = String(value || '').toLowerCase().trim();
+  if (!NAMESPACE_REGEX.test(normalized) || normalized.length < NAMESPACE_MIN_LENGTH || normalized.length > NAMESPACE_MAX_LENGTH) {
+    throw new Error(`Namespace must use lowercase letters, digits, and internal hyphens only, and be between ${NAMESPACE_MIN_LENGTH} and ${NAMESPACE_MAX_LENGTH} characters`);
+  }
+  return normalized;
+}
+
+export function validateSlug(value) {
+  const normalized = String(value || '').trim();
+  if (!SLUG_REGEX.test(normalized) || normalized.length < SLUG_MIN_LENGTH || normalized.length > SLUG_MAX_LENGTH) {
+    throw new Error(`Theme slug must use lowercase letters, digits, and internal hyphens only, and be between ${SLUG_MIN_LENGTH} and ${SLUG_MAX_LENGTH} characters`);
+  }
+  return normalized;
+}
+
+export function validateThemeManifest(themeJson) {
+  const { errors, manifest } = validateManifest(themeJson);
+  return {
+    ok: errors.length === 0,
+    errors,
+    manifest,
+  };
 }
 
 export async function parseThemeManifestFromZip(buffer) {
@@ -255,8 +286,8 @@ function validateManifest(themeJson) {
     errors.push(issue('INVALID_SEMVER', 'theme.json', 'Theme version must follow semantic versioning (e.g. 1.0.0)', 'error'));
   }
 
-  if (typeof themeJson.runtime === 'string' && themeJson.runtime.trim() !== '0.2') {
-    errors.push(issue('INVALID_RUNTIME_VERSION', 'theme.json', "theme.json field 'runtime' must be '0.2'", 'error'));
+  if (typeof themeJson.runtime === 'string' && themeJson.runtime.trim() !== DEFAULT_RUNTIME) {
+    errors.push(issue('INVALID_RUNTIME_VERSION', 'theme.json', `theme.json field 'runtime' must be '${DEFAULT_RUNTIME}'`, 'error'));
   }
 
   if (typeof themeJson.license === 'string' && !LICENSES.has(themeJson.license.trim())) {
@@ -270,11 +301,11 @@ function validateManifest(themeJson) {
 
   if (typeof themeJson.namespace === 'string') {
     const namespace = themeJson.namespace.trim();
-    if (!NAMESPACE_REGEX.test(namespace) || namespace.length < 3 || namespace.length > 24) {
+    if (!NAMESPACE_REGEX.test(namespace) || namespace.length < NAMESPACE_MIN_LENGTH || namespace.length > NAMESPACE_MAX_LENGTH) {
       errors.push(issue(
         'INVALID_NAMESPACE',
         'theme.json',
-        "theme.json field 'namespace' must follow ZeroPress namespace rules (lowercase letters, digits, hyphens; 3-24 chars)",
+        `theme.json field 'namespace' must follow ZeroPress namespace rules (lowercase letters, digits, hyphens; ${NAMESPACE_MIN_LENGTH}-${NAMESPACE_MAX_LENGTH} chars)`,
         'error'
       ));
     }
@@ -282,11 +313,11 @@ function validateManifest(themeJson) {
 
   if (typeof themeJson.slug === 'string') {
     const slug = themeJson.slug.trim();
-    if (!SLUG_REGEX.test(slug) || slug.length < 3 || slug.length > 32) {
+    if (!SLUG_REGEX.test(slug) || slug.length < SLUG_MIN_LENGTH || slug.length > SLUG_MAX_LENGTH) {
       errors.push(issue(
         'INVALID_SLUG',
         'theme.json',
-        "theme.json field 'slug' must follow ZeroPress slug rules (lowercase letters, digits, hyphens; 3-32 chars)",
+        `theme.json field 'slug' must follow ZeroPress slug rules (lowercase letters, digits, hyphens; ${SLUG_MIN_LENGTH}-${SLUG_MAX_LENGTH} chars)`,
         'error'
       ));
     }

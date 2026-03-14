@@ -37,7 +37,26 @@ export interface ValidationResult {
   checkedFiles: number;
 }
 
+export interface ManifestValidationResult {
+  ok: boolean;
+  errors: ValidationIssue[];
+  manifest?: ThemeManifest;
+}
+
+export const DEFAULT_RUNTIME: '0.2';
+export const ALLOWED_LICENSES: ReadonlyArray<'MIT' | 'Apache-2.0' | 'BSD-3-Clause' | 'GPL-3.0-only' | 'GPL-3.0-or-later'>;
+export const NAMESPACE_MIN_LENGTH: number;
+export const NAMESPACE_MAX_LENGTH: number;
+export const SLUG_MIN_LENGTH: number;
+export const SLUG_MAX_LENGTH: number;
+export const NAME_MAX_LENGTH: number;
+export const AUTHOR_MAX_LENGTH: number;
+export const DESCRIPTION_MAX_LENGTH: number;
+
 export function detectBasePrefix(filePaths: Iterable<string>): string;
+export function validateNamespace(value: string): string;
+export function validateSlug(value: string): string;
+export function validateThemeManifest(themeJson: unknown): ManifestValidationResult;
 export function parseThemeManifestFromZip(buffer: ArrayBuffer | Uint8Array): Promise<ThemeManifest>;
 export function validateThemeZip(buffer: ArrayBuffer | Uint8Array, options?: ValidateThemeOptions): Promise<ValidationResult>;
 export function validateThemeFiles(

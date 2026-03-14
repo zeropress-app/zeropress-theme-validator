@@ -28,8 +28,12 @@ npm install @zeropress/theme-validator
 
 ```js
 import {
+  DEFAULT_RUNTIME,
   detectBasePrefix,
   parseThemeManifestFromZip,
+  validateNamespace,
+  validateSlug,
+  validateThemeManifest,
   validateThemeFiles,
   validateThemeZip,
 } from '@zeropress/theme-validator';
@@ -38,6 +42,23 @@ import {
 ---
 
 ## API
+
+### `validateNamespace(value)` / `validateSlug(value)`
+
+Shared identifier helpers for scaffolding and submission flows.
+
+- `validateNamespace(value)` returns the normalized namespace string or throws
+- `validateSlug(value)` returns the validated slug string or throws
+
+### `validateThemeManifest(themeJson)`
+
+Validates manifest-only input without requiring ZIP or template files.
+
+This is intended for:
+
+- scaffolding tools
+- manifest-only prechecks
+- tests that need runtime contract checks without packaging
 
 ### `validateThemeZip(buffer, options?)`
 
