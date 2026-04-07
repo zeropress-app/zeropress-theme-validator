@@ -169,7 +169,6 @@ export async function validateThemeFiles(fileMap, options = {}) {
   const files = normalizeFileMap(fileMap);
   const errors = [];
   const warnings = [...(options.initialWarnings || [])];
-  const noJsCheck = options.noJsCheck === true;
 
   validatePathSafety(options.pathEntries || [], errors);
 
@@ -218,7 +217,7 @@ export async function validateThemeFiles(fileMap, options = {}) {
     }
     const content = getText(files.get(templatePath));
     templateContents.set(templatePath, content);
-    validateTemplateSyntax(templatePath, content, { errors, noJsCheck });
+    validateTemplateSyntax(templatePath, content, { errors });
   }
 
   validateCommentsPlaceholderGuidance(templateContents, warnings);
@@ -355,7 +354,7 @@ function validateManifest(themeJson) {
 }
 
 function validateTemplateSyntax(templatePath, content, context) {
-  const { errors, noJsCheck } = context;
+  const { errors } = context;
   const slotRegex = /\{\{slot:([a-zA-Z0-9_-]+)\}\}/g;
   const contentSlotMatches = content.match(/\{\{slot:content\}\}/g) || [];
 
@@ -363,7 +362,7 @@ function validateTemplateSyntax(templatePath, content, context) {
     if (contentSlotMatches.length !== 1) {
       errors.push(issue('INVALID_LAYOUT_SLOT', 'layout.html', 'layout.html must contain exactly one {{slot:content}}', 'error'));
     }
-    if (!noJsCheck && /<script\b/i.test(content)) {
+    if (/<script\b/i.test(content)) {
       errors.push(issue('LAYOUT_SCRIPT_NOT_ALLOWED', 'layout.html', 'layout.html must not contain <script> tags', 'error'));
     }
   }

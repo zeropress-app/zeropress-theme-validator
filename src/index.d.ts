@@ -24,7 +24,6 @@ export interface PathSafetyEntry {
 }
 
 export interface ValidateThemeOptions {
-  noJsCheck?: boolean;
   pathEntries?: PathSafetyEntry[];
   checkedFiles?: number;
 }
