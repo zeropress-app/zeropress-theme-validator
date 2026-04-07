@@ -4,11 +4,11 @@
 ![license](https://img.shields.io/npm/l/%40zeropress%2Ftheme-validator)
 ![node](https://img.shields.io/node/v/%40zeropress%2Ftheme-validator)
 
-Shared validation core for ZeroPress theme ZIP archives and directory-backed file maps.
+Shared validation core for ZeroPress theme manifests and directory-backed file maps.
 
 This package is the single source of truth for runtime theme validation used by:
 
-- [zeropress-theme](https://www.npmjs.com/package/zeropress-theme)
+- [@zeropress/theme](https://www.npmjs.com/package/@zeropress/theme)
 - `backend_api_v2`
 - `themes.zeropress.org-api`
 
@@ -29,13 +29,10 @@ npm install @zeropress/theme-validator
 ```js
 import {
   DEFAULT_RUNTIME,
-  detectBasePrefix,
-  parseThemeManifestFromZip,
   validateNamespace,
   validateSlug,
   validateThemeManifest,
   validateThemeFiles,
-  validateThemeZip,
 } from '@zeropress/theme-validator';
 ```
 
@@ -52,63 +49,13 @@ Shared identifier helpers for scaffolding and submission flows.
 
 ### `validateThemeManifest(themeJson)`
 
-Validates manifest-only input without requiring ZIP or template files.
+Validates manifest-only input without requiring theme files.
 
 This is intended for:
 
 - scaffolding tools
 - manifest-only prechecks
 - tests that need runtime contract checks without packaging
-
-### `validateThemeZip(buffer, options?)`
-
-Validates a ZIP archive in memory.
-
-Supported ZIP layouts:
-
-- root-flat uploads
-- uploads wrapped in exactly one top-level folder
-
-Invalid ZIP layouts:
-
-- archives with multiple top-level roots where `theme.json` only exists in one nested folder
-
-Example:
-
-```js
-import { readFile } from 'node:fs/promises';
-import { validateThemeZip } from '@zeropress/theme-validator';
-
-const buffer = await readFile('./dist/my-theme-1.0.0.zip');
-const result = await validateThemeZip(buffer);
-
-if (!result.ok) {
-  console.error(result.errors);
-}
-```
-
-### `parseThemeManifestFromZip(buffer)`
-
-Parses and validates only the theme manifest from a ZIP and returns:
-
-```js
-{
-  name: 'My Theme',
-  namespace: 'my-studio',
-  slug: 'my-theme',
-  version: '1.0.0',
-  license: 'MIT',
-  runtime: '0.2',
-  description: 'Optional description'
-}
-```
-
-This throws when:
-
-- `theme.json` is missing
-- `theme.json` is invalid JSON
-- the manifest violates the runtime contract
-- the ZIP root layout is invalid
 
 ### `validateThemeFiles(fileMap, options?)`
 
@@ -122,7 +69,7 @@ Accepted inputs:
 This is intended for:
 
 - directory-based validation
-- worker-side already-loaded uploads
+- worker-side already-loaded uploads after unzip
 - tests and internal adapters
 
 Directory callers can also pass `pathEntries` for path traversal and symlink validation:
@@ -144,20 +91,9 @@ const result = await validateThemeFiles(files, {
 });
 ```
 
-### `detectBasePrefix(filePaths)`
-
-Detects whether a ZIP is:
-
-- root-flat: returns `''`
-- wrapped in exactly one top-level folder: returns `'folder/'`
-
-For invalid or mixed multi-root layouts it returns `''`. Use `validateThemeZip()` or `parseThemeManifestFromZip()` for full ZIP layout enforcement.
-
----
-
 ## Result Shape
 
-`validateThemeZip()` and `validateThemeFiles()` return:
+`validateThemeFiles()` returns:
 
 ```js
 {
@@ -211,7 +147,6 @@ Issue objects use this shape:
 - Mustache block syntax
 - `<script>` inside `layout.html`
 - Path traversal or symlink escape
-- Invalid ZIP root layout
 
 ### Warnings
 
@@ -230,7 +165,7 @@ Issue objects use this shape:
 
 ## Related
 
-- [zeropress-theme](https://www.npmjs.com/package/zeropress-theme)
+- [@zeropress/theme](https://www.npmjs.com/package/@zeropress/theme)
 - [create-zeropress-theme](https://www.npmjs.com/package/create-zeropress-theme)
 - [ZeroPress Theme Runtime Spec v0.2](https://zeropress.dev/spec/theme-runtime-v0.2.html)
 

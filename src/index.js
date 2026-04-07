@@ -1,5 +1,3 @@
-import JSZip from 'jszip';
-
 const REQUIRED_TEMPLATES = ['layout.html', 'index.html', 'post.html', 'page.html'];
 const OPTIONAL_TEMPLATES = ['archive.html', 'category.html', 'tag.html'];
 const REQUIRED_FILES = ['theme.json', 'assets/style.css'];
@@ -24,17 +22,6 @@ export const SLUG_MAX_LENGTH = 32;
 export const NAME_MAX_LENGTH = 80;
 export const AUTHOR_MAX_LENGTH = 80;
 export const DESCRIPTION_MAX_LENGTH = 280;
-const MACOS_METADATA_WARNING = issue(
-  'MACOS_METADATA_IGNORED',
-  'theme.zip',
-  'macOS metadata files (__MACOSX, ._*) were ignored',
-  'warning'
-);
-
-export function detectBasePrefix(filePaths) {
-  const analysis = analyzeZipLayout(filePaths);
-  return analysis.basePrefix;
-}
 
 export function validateNamespace(value) {
   const normalized = String(value || '').toLowerCase().trim();
@@ -61,114 +48,10 @@ export function validateThemeManifest(themeJson) {
   };
 }
 
-export async function parseThemeManifestFromZip(buffer) {
-  const zip = await JSZip.loadAsync(buffer);
-  const filePaths = Object.keys(zip.files).filter((filePath) => !zip.files[filePath].dir);
-  const analysis = analyzeZipLayout(filePaths);
-
-  if (analysis.error) {
-    throw new Error(analysis.error);
-  }
-
-  const themeJsonFile = zip.file(analysis.zipPathByRelativePath.get('theme.json'));
-
-  if (!themeJsonFile) {
-    throw new Error('Theme package must contain theme.json at root (or a single top-level folder root)');
-  }
-
-  let manifest;
-  try {
-    manifest = JSON.parse(await themeJsonFile.async('string'));
-  } catch (error) {
-    throw new Error(`Invalid theme.json: ${error instanceof Error ? error.message : String(error)}`);
-  }
-
-  const { errors, manifest: parsedManifest } = validateManifest(manifest);
-  if (errors.length > 0 || !parsedManifest) {
-    throw new Error(errors[0]?.message || 'Invalid theme.json');
-  }
-
-  return parsedManifest;
-}
-
-export async function validateThemeZip(buffer, options = {}) {
-  const zip = await JSZip.loadAsync(buffer);
-  const filePaths = Object.keys(zip.files).filter((filePath) => !zip.files[filePath].dir);
-  const analysis = analyzeZipLayout(filePaths);
-  const files = new Map();
-
-  if (analysis.error) {
-    return {
-      ok: false,
-      errors: [issue('INVALID_ZIP_ROOT', 'theme.zip', analysis.error, 'error')],
-      warnings: [],
-      manifest: undefined,
-      checkedFiles: analysis.checkedFiles,
-    };
-  }
-
-  await Promise.all(
-    analysis.normalizedFilePaths.map(async (normalizedPath) => {
-      const relativePath = analysis.relativePathByZipPath.get(normalizedPath) || normalizedPath;
-      const file = zip.file(normalizedPath);
-      if (!file || file.dir) {
-        return;
-      }
-
-      files.set(relativePath, await file.async('string'));
-    })
-  );
-
-  return validateThemeFiles(files, {
-    ...options,
-    checkedFiles: analysis.checkedFiles,
-    initialWarnings: analysis.ignoredMacOsMetadata ? [MACOS_METADATA_WARNING] : [],
-  });
-}
-
-function analyzeZipLayout(filePaths) {
-  const normalized = [...filePaths]
-    .map((filePath) => normalizePath(String(filePath)))
-    .filter(Boolean);
-  const normalizedWithoutMetadata = normalized.filter((filePath) => !isIgnorableMacOsMetadata(filePath));
-
-  if (normalizedWithoutMetadata.includes('theme.json')) {
-    return createZipLayoutAnalysis(normalizedWithoutMetadata, '', normalizedWithoutMetadata.length !== normalized.length);
-  }
-
-  const topLevels = new Set(normalizedWithoutMetadata.map((filePath) => filePath.split('/')[0]).filter(Boolean));
-  if (topLevels.size === 1) {
-    const folder = [...topLevels][0];
-    if (normalizedWithoutMetadata.includes(`${folder}/theme.json`)) {
-      return createZipLayoutAnalysis(
-        normalizedWithoutMetadata,
-        `${folder}/`,
-        normalizedWithoutMetadata.length !== normalized.length
-      );
-    }
-  }
-
-  const nestedThemeJson = normalizedWithoutMetadata.filter((filePath) => filePath.endsWith('/theme.json') && filePath.split('/').length === 2);
-  if (nestedThemeJson.length > 0) {
-    return {
-      basePrefix: '',
-      error: 'Theme package must be root-flat or wrapped in a single top-level folder',
-      normalizedFilePaths: normalizedWithoutMetadata,
-      checkedFiles: normalizedWithoutMetadata.length,
-    };
-  }
-
-  return createZipLayoutAnalysis(
-    normalizedWithoutMetadata,
-    '',
-    normalizedWithoutMetadata.length !== normalized.length
-  );
-}
-
 export async function validateThemeFiles(fileMap, options = {}) {
   const files = normalizeFileMap(fileMap);
   const errors = [];
-  const warnings = [...(options.initialWarnings || [])];
+  const warnings = [];
 
   validatePathSafety(options.pathEntries || [], errors);
 
@@ -406,43 +289,6 @@ function validateCommentsPlaceholderGuidance(templateContents, warnings) {
       'warning'
     ));
   }
-}
-
-function createZipLayoutAnalysis(normalizedFilePaths, basePrefix, ignoredMacOsMetadata) {
-  const relativePathByZipPath = new Map();
-  const zipPathByRelativePath = new Map();
-
-  for (const normalizedPath of normalizedFilePaths) {
-    const relativePath = basePrefix && normalizedPath.startsWith(basePrefix)
-      ? normalizedPath.slice(basePrefix.length)
-      : normalizedPath;
-
-    relativePathByZipPath.set(normalizedPath, relativePath);
-    zipPathByRelativePath.set(relativePath, normalizedPath);
-  }
-
-  return {
-    basePrefix,
-    error: null,
-    ignoredMacOsMetadata,
-    normalizedFilePaths,
-    relativePathByZipPath,
-    zipPathByRelativePath,
-    checkedFiles: normalizedFilePaths.length,
-  };
-}
-
-function isIgnorableMacOsMetadata(filePath) {
-  const normalizedPath = normalizePath(filePath);
-  if (!normalizedPath) {
-    return false;
-  }
-
-  if (normalizedPath.startsWith('__MACOSX/')) {
-    return true;
-  }
-
-  return normalizedPath.split('/').some((segment) => segment.startsWith('._'));
 }
 
 function validatePathSafety(pathEntries, errors) {

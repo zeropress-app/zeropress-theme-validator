@@ -18,9 +18,6 @@
   "scripts": {
     "test": "node --test"
   },
-  "dependencies": {
-    "jszip": "^3.10.1"
-  },
   "engines": {
     "node": ">=18.18.0"
   }

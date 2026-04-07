@@ -52,12 +52,9 @@ export const NAME_MAX_LENGTH: number;
 export const AUTHOR_MAX_LENGTH: number;
 export const DESCRIPTION_MAX_LENGTH: number;
 
-export function detectBasePrefix(filePaths: Iterable<string>): string;
 export function validateNamespace(value: string): string;
 export function validateSlug(value: string): string;
 export function validateThemeManifest(themeJson: unknown): ManifestValidationResult;
-export function parseThemeManifestFromZip(buffer: ArrayBuffer | Uint8Array): Promise<ThemeManifest>;
-export function validateThemeZip(buffer: ArrayBuffer | Uint8Array, options?: ValidateThemeOptions): Promise<ValidationResult>;
 export function validateThemeFiles(
   fileMap: Map<string, string | Uint8Array | ArrayBuffer> | Record<string, string | Uint8Array | ArrayBuffer>,
   options?: ValidateThemeOptions
