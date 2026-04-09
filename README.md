@@ -36,6 +36,14 @@ import {
 } from '@zeropress/theme-validator';
 ```
 
+Schema exports:
+
+```js
+import runtimeSchemaUrl from '@zeropress/theme-validator/theme.v0.2.runtime.schema.json';
+```
+
+Published schema files are shipped from the package `schemas/` directory, and package subpath exports are versioned.
+
 ---
 
 ## API

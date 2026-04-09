@@ -5,11 +5,13 @@
   "type": "module",
   "license": "MIT",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./src/index.js",
+    "./theme.v0.2.runtime.schema.json": "./schemas/theme.v0.2.runtime.schema.json"
   },
   "types": "./src/index.d.ts",
   "files": [
-    "src"
+    "src",
+    "schemas"
   ],
   "repository": {
     "type": "git",

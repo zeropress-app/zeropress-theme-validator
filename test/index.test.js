@@ -271,3 +271,7 @@ test('validateThemeFiles rejects symlink targets that only share the same string
   await fs.rm(root, { recursive: true, force: true });
   await fs.rm(prefixSibling, { recursive: true, force: true });
 });
+
+test('published schema files are stored outside src', async () => {
+  await fs.access(new URL('../schemas/theme.v0.2.runtime.schema.json', import.meta.url));
+});
