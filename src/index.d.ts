@@ -11,9 +11,13 @@ export interface ThemeManifest {
   slug: string;
   version: string;
   license: 'MIT' | 'Apache-2.0' | 'BSD-3-Clause' | 'GPL-3.0-only' | 'GPL-3.0-or-later';
-  runtime: '0.2';
+  runtime: '0.3';
   author?: string;
   description?: string;
+  menuSlots?: Record<string, {
+    title: string;
+    description?: string;
+  }>;
 }
 
 export interface PathSafetyEntry {
@@ -42,7 +46,7 @@ export interface ManifestValidationResult {
   manifest?: ThemeManifest;
 }
 
-export const DEFAULT_RUNTIME: '0.2';
+export const DEFAULT_RUNTIME: '0.3';
 export const ALLOWED_LICENSES: ReadonlyArray<'MIT' | 'Apache-2.0' | 'BSD-3-Clause' | 'GPL-3.0-only' | 'GPL-3.0-or-later'>;
 export const NAMESPACE_MIN_LENGTH: number;
 export const NAMESPACE_MAX_LENGTH: number;
