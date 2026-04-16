@@ -16,16 +16,16 @@
   "$defs": {
     "menuSlotDefinition": {
       "type": "object",
-      "description": "Admin-facing metadata for a single menu slot declared by the theme.",
-      "markdownDescription": "Admin-facing metadata for a single menu slot declared by the theme. This does not assign a menu; it only declares a supported location.",
+      "description": "Admin-facing helper metadata for a single recommended menu id declared by the theme.",
+      "markdownDescription": "Admin-facing helper metadata for a single recommended menu id declared by the theme. This does not assign a menu; it only documents a commonly expected id.",
       "additionalProperties": false,
       "required": [
         "title"
       ],
       "properties": {
         "title": {
-          "description": "Human-readable slot label shown in menu assignment UIs.",
-          "markdownDescription": "Human-readable slot label shown in menu assignment UIs, for example `Primary Menu` or `Footer Menu`.",
+          "description": "Human-readable label shown in helper UIs.",
+          "markdownDescription": "Human-readable label shown in helper UIs, for example `Primary Menu` or `Footer Menu`.",
           "type": "string",
           "minLength": 1,
           "maxLength": 80
@@ -112,13 +112,13 @@
     },
     "menuSlots": {
       "description": "Optional map of menu slots declared by the theme.",
-      "markdownDescription": "Optional map of menu slots declared by the theme. Keys are stable slot identifiers such as `primary` or `sidebar`. This field declares supported locations only; it does not assign menus.",
+      "markdownDescription": "Optional map of recommended `menu_id` values declared by the theme. Keys are stable identifiers such as `primary`, `footer`, or `docs-sidebar`. This field is informational helper metadata for admin UIs and documentation; it does not assign menus or affect build behavior.",
       "type": "object",
       "minProperties": 1,
       "maxProperties": 12,
       "propertyNames": {
         "description": "Menu slot identifier.",
-        "markdownDescription": "Menu slot identifier. Use lowercase letters, numbers, and internal hyphens only. Reserved ids `content`, `header`, `footer`, and `meta` are not allowed.",
+        "markdownDescription": "Recommended `menu_id` identifier. Use lowercase letters, numbers, and internal hyphens only. Reserved ids `content`, `header`, `footer`, and `meta` are not allowed.",
         "type": "string",
         "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
         "minLength": 1,
@@ -151,8 +151,9 @@
           "title": "Primary Menu",
           "description": "Main header navigation"
         },
-        "sidebar": {
-          "title": "Sidebar Menu"
+        "docs-sidebar": {
+          "title": "Docs Sidebar",
+          "description": "Documentation side navigation"
         }
       }
     }
