@@ -219,6 +219,33 @@ test('validateThemeFiles accepts valid menuSlots metadata', async () => {
   assert.equal(result.manifest?.menuSlots?.primary?.title, 'Primary Menu');
 });
 
+test('validateThemeFiles allows menuSlots that reuse template slot names', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.3',
+    menuSlots: {
+      header: {
+        title: 'Header Menu',
+      },
+      footer: {
+        title: 'Footer Menu',
+      },
+      content: {
+        title: 'In-Content Menu',
+      },
+    },
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, true);
+  assert.equal(result.manifest?.menuSlots?.footer?.title, 'Footer Menu');
+});
+
 test('validateThemeFiles rejects invalid menuSlots metadata', async () => {
   const files = createValidThemeFiles();
   files['theme.json'] = JSON.stringify({
@@ -229,12 +256,6 @@ test('validateThemeFiles rejects invalid menuSlots metadata', async () => {
     license: 'MIT',
     runtime: '0.3',
     menuSlots: {
-      footer: {
-        title: 'Footer Menu',
-      },
-      content: {
-        title: 'Reserved Slot',
-      },
       'Bad Slot': {
         title: 'Bad Slot',
       },
@@ -247,7 +268,6 @@ test('validateThemeFiles rejects invalid menuSlots metadata', async () => {
 
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);
-  assert.equal(result.errors.some((issue) => issue.code === 'RESERVED_MENU_SLOT_ID'), true);
   assert.equal(result.errors.some((issue) => issue.code === 'INVALID_MENU_SLOT_ID'), true);
   assert.equal(result.errors.some((issue) => issue.code === 'INVALID_MENU_SLOT_TITLE'), true);
   assert.equal(result.errors.some((issue) => issue.code === 'INVALID_MENU_SLOT_PROPERTY'), true);

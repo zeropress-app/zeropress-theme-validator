@@ -155,7 +155,7 @@ Issue objects use this shape:
 - `theme.json.author` longer than 80 characters
 - `theme.json.description` longer than 280 characters
 - Invalid `theme.json.menuSlots`
-- Invalid or reserved menu slot ids
+- Invalid menu slot ids
 - Invalid menu slot definitions or unknown slot properties
 - `layout.html` missing or duplicating `{{slot:content}}`
 - Unknown slot names

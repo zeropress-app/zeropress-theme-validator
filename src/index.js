@@ -27,7 +27,6 @@ export const MENU_SLOT_ID_MAX_LENGTH = 32;
 export const MENU_SLOT_COUNT_MAX = 12;
 export const MENU_SLOT_TITLE_MAX_LENGTH = 80;
 export const MENU_SLOT_DESCRIPTION_MAX_LENGTH = 160;
-const RESERVED_MENU_SLOT_IDS = new Set(['content', 'header', 'footer', 'meta']);
 
 export function validateNamespace(value) {
   const normalized = String(value || '').toLowerCase().trim();
@@ -264,15 +263,6 @@ function validateManifest(themeJson) {
             'error'
           ));
           continue;
-        }
-
-        if (RESERVED_MENU_SLOT_IDS.has(slotId)) {
-          errors.push(issue(
-            'RESERVED_MENU_SLOT_ID',
-            `theme.json.menuSlots.${slotId}`,
-            `Menu slot id '${slotId}' is reserved and cannot be used`,
-            'error'
-          ));
         }
 
         if (!value || typeof value !== 'object' || Array.isArray(value)) {

@@ -118,19 +118,11 @@
       "maxProperties": 12,
       "propertyNames": {
         "description": "Menu slot identifier.",
-        "markdownDescription": "Recommended `menu_id` identifier. Use lowercase letters, numbers, and internal hyphens only. Reserved ids `content`, `header`, `footer`, and `meta` are not allowed.",
+        "markdownDescription": "Recommended `menu_id` identifier. Use lowercase letters, numbers, and internal hyphens only.",
         "type": "string",
         "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
         "minLength": 1,
-        "maxLength": 32,
-        "not": {
-          "enum": [
-            "content",
-            "header",
-            "footer",
-            "meta"
-          ]
-        }
+        "maxLength": 32
       },
       "additionalProperties": {
         "$ref": "#/$defs/menuSlotDefinition"
