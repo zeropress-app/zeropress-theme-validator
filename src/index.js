@@ -28,6 +28,120 @@ export const MENU_SLOT_COUNT_MAX = 12;
 export const MENU_SLOT_TITLE_MAX_LENGTH = 80;
 export const MENU_SLOT_DESCRIPTION_MAX_LENGTH = 160;
 
+function validateHelperMetadataMap(rawValue, fieldName, issueCodes, errors) {
+  if (rawValue === undefined) {
+    return undefined;
+  }
+
+  if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) {
+    errors.push(issue(
+      issueCodes.invalidCollectionCode,
+      'theme.json',
+      `theme.json field '${fieldName}' must be an object when present`,
+      'error'
+    ));
+    return undefined;
+  }
+
+  const entries = Object.entries(rawValue);
+
+  if (entries.length === 0) {
+    errors.push(issue(
+      issueCodes.invalidCollectionCode,
+      'theme.json',
+      `theme.json field '${fieldName}' must not be empty`,
+      'error'
+    ));
+  }
+
+  if (entries.length > MENU_SLOT_COUNT_MAX) {
+    errors.push(issue(
+      issueCodes.invalidCollectionCode,
+      'theme.json',
+      `theme.json field '${fieldName}' must contain at most ${MENU_SLOT_COUNT_MAX} ${issueCodes.collectionLabel}`,
+      'error'
+    ));
+  }
+
+  const normalizedItems = {};
+
+  for (const [itemId, value] of entries) {
+    if (!MENU_SLOT_ID_REGEX.test(itemId) || itemId.length < 1 || itemId.length > MENU_SLOT_ID_MAX_LENGTH) {
+      errors.push(issue(
+        issueCodes.invalidIdCode,
+        `theme.json.${fieldName}.${itemId}`,
+        `${issueCodes.itemLabel} id '${itemId}' must use lowercase letters, digits, and internal hyphens only, and be between 1 and ${MENU_SLOT_ID_MAX_LENGTH} characters`,
+        'error'
+      ));
+      continue;
+    }
+
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      errors.push(issue(
+        issueCodes.invalidItemCode,
+        `theme.json.${fieldName}.${itemId}`,
+        `${issueCodes.itemLabel} '${itemId}' must be an object`,
+        'error'
+      ));
+      continue;
+    }
+
+    const allowedKeys = new Set(['title', 'description']);
+    for (const key of Object.keys(value)) {
+      if (!allowedKeys.has(key)) {
+        errors.push(issue(
+          issueCodes.invalidPropertyCode,
+          `theme.json.${fieldName}.${itemId}.${key}`,
+          `Unknown ${issueCodes.propertyLabel} '${key}' in ${issueCodes.itemLabel.toLowerCase()} '${itemId}'`,
+          'error'
+        ));
+      }
+    }
+
+    if (typeof value.title !== 'string' || value.title.trim() === '') {
+      errors.push(issue(
+        issueCodes.invalidTitleCode,
+        `theme.json.${fieldName}.${itemId}.title`,
+        `${issueCodes.itemLabel} '${itemId}' must define a non-empty 'title'`,
+        'error'
+      ));
+    } else if (value.title.trim().length > MENU_SLOT_TITLE_MAX_LENGTH) {
+      errors.push(issue(
+        issueCodes.invalidTitleCode,
+        `theme.json.${fieldName}.${itemId}.title`,
+        `${issueCodes.itemLabel} '${itemId}' title must be at most ${MENU_SLOT_TITLE_MAX_LENGTH} characters`,
+        'error'
+      ));
+    }
+
+    if (typeof value.description === 'string' && value.description.trim().length > MENU_SLOT_DESCRIPTION_MAX_LENGTH) {
+      errors.push(issue(
+        issueCodes.invalidDescriptionCode,
+        `theme.json.${fieldName}.${itemId}.description`,
+        `${issueCodes.itemLabel} '${itemId}' description must be at most ${MENU_SLOT_DESCRIPTION_MAX_LENGTH} characters`,
+        'error'
+      ));
+    }
+
+    if (
+      typeof value.title === 'string' &&
+      value.title.trim() !== '' &&
+      value.title.trim().length <= MENU_SLOT_TITLE_MAX_LENGTH &&
+      (value.description === undefined ||
+        (typeof value.description === 'string' && value.description.trim().length <= MENU_SLOT_DESCRIPTION_MAX_LENGTH))
+    ) {
+      normalizedItems[itemId] = {
+        title: value.title.trim(),
+        ...(typeof value.description === 'string' && value.description.trim() !== ''
+          ? { description: value.description.trim() }
+          : {}),
+      };
+    }
+  }
+
+  return Object.keys(normalizedItems).length > 0 ? normalizedItems : undefined;
+}
+
 export function validateNamespace(value) {
   const normalized = String(value || '').toLowerCase().trim();
   if (!NAMESPACE_REGEX.test(normalized) || normalized.length < NAMESPACE_MIN_LENGTH || normalized.length > NAMESPACE_MAX_LENGTH) {
@@ -238,100 +352,34 @@ function validateManifest(themeJson) {
     }
   }
 
-  if (themeJson.menuSlots !== undefined) {
-    if (!themeJson.menuSlots || typeof themeJson.menuSlots !== 'object' || Array.isArray(themeJson.menuSlots)) {
-      errors.push(issue('INVALID_MENU_SLOTS', 'theme.json', "theme.json field 'menuSlots' must be an object when present", 'error'));
-    } else {
-      const entries = Object.entries(themeJson.menuSlots);
+  const menuSlots = validateHelperMetadataMap(themeJson.menuSlots, 'menuSlots', {
+    itemLabel: 'Menu slot',
+    propertyLabel: 'menu slot property',
+    collectionLabel: 'slots',
+    invalidCollectionCode: 'INVALID_MENU_SLOTS',
+    invalidIdCode: 'INVALID_MENU_SLOT_ID',
+    invalidItemCode: 'INVALID_MENU_SLOT',
+    invalidPropertyCode: 'INVALID_MENU_SLOT_PROPERTY',
+    invalidTitleCode: 'INVALID_MENU_SLOT_TITLE',
+    invalidDescriptionCode: 'INVALID_MENU_SLOT_DESCRIPTION',
+  }, errors);
+  if (menuSlots) {
+    manifest.menuSlots = menuSlots;
+  }
 
-      if (entries.length === 0) {
-        errors.push(issue('INVALID_MENU_SLOTS', 'theme.json', "theme.json field 'menuSlots' must not be empty", 'error'));
-      }
-
-      if (entries.length > MENU_SLOT_COUNT_MAX) {
-        errors.push(issue('INVALID_MENU_SLOTS', 'theme.json', `theme.json field 'menuSlots' must contain at most ${MENU_SLOT_COUNT_MAX} slots`, 'error'));
-      }
-
-      const menuSlots = {};
-
-      for (const [slotId, value] of entries) {
-        if (!MENU_SLOT_ID_REGEX.test(slotId) || slotId.length < 1 || slotId.length > MENU_SLOT_ID_MAX_LENGTH) {
-          errors.push(issue(
-            'INVALID_MENU_SLOT_ID',
-            `theme.json.menuSlots.${slotId}`,
-            `Menu slot id '${slotId}' must use lowercase letters, digits, and internal hyphens only, and be between 1 and ${MENU_SLOT_ID_MAX_LENGTH} characters`,
-            'error'
-          ));
-          continue;
-        }
-
-        if (!value || typeof value !== 'object' || Array.isArray(value)) {
-          errors.push(issue(
-            'INVALID_MENU_SLOT',
-            `theme.json.menuSlots.${slotId}`,
-            `Menu slot '${slotId}' must be an object`,
-            'error'
-          ));
-          continue;
-        }
-
-        const allowedKeys = new Set(['title', 'description']);
-        for (const key of Object.keys(value)) {
-          if (!allowedKeys.has(key)) {
-            errors.push(issue(
-              'INVALID_MENU_SLOT_PROPERTY',
-              `theme.json.menuSlots.${slotId}.${key}`,
-              `Unknown menu slot property '${key}' in slot '${slotId}'`,
-              'error'
-            ));
-          }
-        }
-
-        if (typeof value.title !== 'string' || value.title.trim() === '') {
-          errors.push(issue(
-            'INVALID_MENU_SLOT_TITLE',
-            `theme.json.menuSlots.${slotId}.title`,
-            `Menu slot '${slotId}' must define a non-empty 'title'`,
-            'error'
-          ));
-        } else if (value.title.trim().length > MENU_SLOT_TITLE_MAX_LENGTH) {
-          errors.push(issue(
-            'INVALID_MENU_SLOT_TITLE',
-            `theme.json.menuSlots.${slotId}.title`,
-            `Menu slot '${slotId}' title must be at most ${MENU_SLOT_TITLE_MAX_LENGTH} characters`,
-            'error'
-          ));
-        }
-
-        if (typeof value.description === 'string' && value.description.trim().length > MENU_SLOT_DESCRIPTION_MAX_LENGTH) {
-          errors.push(issue(
-            'INVALID_MENU_SLOT_DESCRIPTION',
-            `theme.json.menuSlots.${slotId}.description`,
-            `Menu slot '${slotId}' description must be at most ${MENU_SLOT_DESCRIPTION_MAX_LENGTH} characters`,
-            'error'
-          ));
-        }
-
-        if (
-          typeof value.title === 'string' &&
-          value.title.trim() !== '' &&
-          value.title.trim().length <= MENU_SLOT_TITLE_MAX_LENGTH &&
-          (value.description === undefined ||
-            (typeof value.description === 'string' && value.description.trim().length <= MENU_SLOT_DESCRIPTION_MAX_LENGTH))
-        ) {
-          menuSlots[slotId] = {
-            title: value.title.trim(),
-            ...(typeof value.description === 'string' && value.description.trim() !== ''
-              ? { description: value.description.trim() }
-              : {}),
-          };
-        }
-      }
-
-      if (Object.keys(menuSlots).length > 0) {
-        manifest.menuSlots = menuSlots;
-      }
-    }
+  const widgetAreas = validateHelperMetadataMap(themeJson.widgetAreas, 'widgetAreas', {
+    itemLabel: 'Widget area',
+    propertyLabel: 'widget area property',
+    collectionLabel: 'areas',
+    invalidCollectionCode: 'INVALID_WIDGET_AREAS',
+    invalidIdCode: 'INVALID_WIDGET_AREA_ID',
+    invalidItemCode: 'INVALID_WIDGET_AREA',
+    invalidPropertyCode: 'INVALID_WIDGET_AREA_PROPERTY',
+    invalidTitleCode: 'INVALID_WIDGET_AREA_TITLE',
+    invalidDescriptionCode: 'INVALID_WIDGET_AREA_DESCRIPTION',
+  }, errors);
+  if (widgetAreas) {
+    manifest.widgetAreas = widgetAreas;
   }
 
   return { errors, manifest: errors.length > 0 ? undefined : manifest };

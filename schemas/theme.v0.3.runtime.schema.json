@@ -37,6 +37,30 @@
           "maxLength": 160
         }
       }
+    },
+    "widgetAreaDefinition": {
+      "type": "object",
+      "description": "Admin-facing helper metadata for a single recommended widget area id declared by the theme.",
+      "markdownDescription": "Admin-facing helper metadata for a single recommended `widget_area_id` declared by the theme. This does not assign widgets; it only documents a commonly expected area id.",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "description": "Human-readable label shown in helper UIs.",
+          "markdownDescription": "Human-readable label shown in helper UIs, for example `Sidebar Widgets` or `Header Widgets`.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "description": {
+          "description": "Optional help text that explains where this widget area is typically rendered.",
+          "markdownDescription": "Optional help text that explains where this widget area is typically rendered, for example `Widgets shown next to article and page content`.",
+          "type": "string",
+          "maxLength": 160
+        }
+      }
     }
   },
   "properties": {
@@ -127,6 +151,24 @@
       "additionalProperties": {
         "$ref": "#/$defs/menuSlotDefinition"
       }
+    },
+    "widgetAreas": {
+      "description": "Optional map of widget areas declared by the theme.",
+      "markdownDescription": "Optional map of recommended `widget_area_id` values declared by the theme. Keys are stable identifiers such as `sidebar`, `header`, or `docs-sidebar`. This field is informational helper metadata for admin UIs and documentation; it does not assign widgets or affect build behavior.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 12,
+      "propertyNames": {
+        "description": "Widget area identifier.",
+        "markdownDescription": "Recommended `widget_area_id` identifier. Use lowercase letters, numbers, and internal hyphens only.",
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+        "minLength": 1,
+        "maxLength": 32
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/widgetAreaDefinition"
+      }
     }
   },
   "examples": [
@@ -146,6 +188,16 @@
         "docs-sidebar": {
           "title": "Docs Sidebar",
           "description": "Documentation side navigation"
+        }
+      },
+      "widgetAreas": {
+        "sidebar": {
+          "title": "Sidebar Widgets",
+          "description": "Widgets shown next to article and page content"
+        },
+        "header": {
+          "title": "Header Widgets",
+          "description": "Optional widgets shown in the header area"
         }
       }
     }

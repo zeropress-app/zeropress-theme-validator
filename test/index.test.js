@@ -273,6 +273,129 @@ test('validateThemeFiles rejects invalid menuSlots metadata', async () => {
   assert.equal(result.errors.some((issue) => issue.code === 'INVALID_MENU_SLOT_PROPERTY'), true);
 });
 
+test('validateThemeFiles accepts valid widgetAreas metadata', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.3',
+    widgetAreas: {
+      sidebar: {
+        title: 'Sidebar Widgets',
+        description: 'Widgets shown next to article content',
+      },
+      header: {
+        title: 'Header Widgets',
+      },
+    },
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, true);
+  assert.equal(result.manifest?.widgetAreas?.sidebar?.title, 'Sidebar Widgets');
+});
+
+test('validateThemeFiles allows widgetAreas that reuse template slot names', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.3',
+    widgetAreas: {
+      header: {
+        title: 'Header Widgets',
+      },
+      footer: {
+        title: 'Footer Widgets',
+      },
+      content: {
+        title: 'Inline Content Widgets',
+      },
+    },
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, true);
+  assert.equal(result.manifest?.widgetAreas?.footer?.title, 'Footer Widgets');
+});
+
+test('validateThemeFiles rejects invalid widgetAreas metadata', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.3',
+    widgetAreas: {
+      'Bad Area': {
+        title: 'Bad Area',
+      },
+      sidebar: {
+        title: '',
+        extra: true,
+      },
+    },
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_WIDGET_AREA_ID'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_WIDGET_AREA_TITLE'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_WIDGET_AREA_PROPERTY'), true);
+});
+
+test('validateThemeFiles rejects empty widgetAreas metadata', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.3',
+    widgetAreas: {},
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_WIDGET_AREAS'), true);
+});
+
+test('validateThemeFiles accepts menuSlots and widgetAreas together', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.3',
+    menuSlots: {
+      primary: {
+        title: 'Primary Menu',
+      },
+    },
+    widgetAreas: {
+      sidebar: {
+        title: 'Sidebar Widgets',
+      },
+    },
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, true);
+  assert.equal(result.manifest?.menuSlots?.primary?.title, 'Primary Menu');
+  assert.equal(result.manifest?.widgetAreas?.sidebar?.title, 'Sidebar Widgets');
+});
+
 test('validateThemeFiles reports forbidden Mustache blocks', async () => {
   const files = createValidThemeFiles();
   files['index.html'] = '{{#if site.title}}ok{{/if}}';

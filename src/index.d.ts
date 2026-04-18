@@ -18,6 +18,10 @@ export interface ThemeManifest {
     title: string;
     description?: string;
   }>;
+  widgetAreas?: Record<string, {
+    title: string;
+    description?: string;
+  }>;
 }
 
 export interface PathSafetyEntry {

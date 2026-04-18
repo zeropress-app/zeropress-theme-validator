@@ -121,6 +121,11 @@ const result = await validateThemeFiles(files, {
         title: 'Primary Menu',
       },
     },
+    widgetAreas: {
+      sidebar: {
+        title: 'Sidebar Widgets',
+      },
+    },
   },
   checkedFiles: 6
 }
@@ -155,8 +160,11 @@ Issue objects use this shape:
 - `theme.json.author` longer than 80 characters
 - `theme.json.description` longer than 280 characters
 - Invalid `theme.json.menuSlots`
+- Invalid `theme.json.widgetAreas`
 - Invalid menu slot ids
 - Invalid menu slot definitions or unknown slot properties
+- Invalid widget area ids
+- Invalid widget area definitions or unknown widget area properties
 - `layout.html` missing or duplicating `{{slot:content}}`
 - Unknown slot names
 - Nested slot expressions
