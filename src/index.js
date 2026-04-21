@@ -15,6 +15,9 @@ export const ALLOWED_LICENSES = [
 ];
 const LICENSES = new Set(ALLOWED_LICENSES);
 export const DEFAULT_RUNTIME = '0.3';
+export const THEME_RUNTIME_V0_4 = '0.4';
+export const SUPPORTED_RUNTIMES = [DEFAULT_RUNTIME, THEME_RUNTIME_V0_4];
+const SUPPORTED_RUNTIME_SET = new Set(SUPPORTED_RUNTIMES);
 export const NAMESPACE_MIN_LENGTH = 3;
 export const NAMESPACE_MAX_LENGTH = 24;
 export const SLUG_MIN_LENGTH = 3;
@@ -219,7 +222,7 @@ export async function validateThemeFiles(fileMap, options = {}) {
     }
     const content = getText(files.get(templatePath));
     templateContents.set(templatePath, content);
-    validateTemplateSyntax(templatePath, content, { errors });
+    validateTemplateSyntax(templatePath, content, { errors, runtime: manifest?.runtime || DEFAULT_RUNTIME });
   }
 
   validateCommentsPlaceholderGuidance(templateContents, warnings);
@@ -287,8 +290,8 @@ function validateManifest(themeJson) {
     errors.push(issue('INVALID_SEMVER', 'theme.json', 'Theme version must follow semantic versioning (e.g. 1.0.0)', 'error'));
   }
 
-  if (typeof themeJson.runtime === 'string' && themeJson.runtime.trim() !== DEFAULT_RUNTIME) {
-    errors.push(issue('INVALID_RUNTIME_VERSION', 'theme.json', `theme.json field 'runtime' must be '${DEFAULT_RUNTIME}'`, 'error'));
+  if (typeof themeJson.runtime === 'string' && !SUPPORTED_RUNTIME_SET.has(themeJson.runtime.trim())) {
+    errors.push(issue('INVALID_RUNTIME_VERSION', 'theme.json', `theme.json field 'runtime' must be one of: ${SUPPORTED_RUNTIMES.join(', ')}`, 'error'));
   }
 
   if (typeof themeJson.license === 'string' && !LICENSES.has(themeJson.license.trim())) {
@@ -387,6 +390,7 @@ function validateManifest(themeJson) {
 
 function validateTemplateSyntax(templatePath, content, context) {
   const { errors } = context;
+  const runtime = context.runtime || DEFAULT_RUNTIME;
   const slotRegex = /\{\{slot:([a-zA-Z0-9_-]+)\}\}/g;
   const contentSlotMatches = content.match(/\{\{slot:content\}\}/g) || [];
 
@@ -411,8 +415,110 @@ function validateTemplateSyntax(templatePath, content, context) {
     errors.push(issue('NESTED_SLOT', templatePath, `Nested slots are not allowed in ${templatePath}`, 'error'));
   }
 
-  if (/\{\{[#/][^}]+\}\}/.test(content)) {
-    errors.push(issue('MUSTACHE_BLOCK_NOT_ALLOWED', templatePath, `Mustache block syntax is not allowed in ${templatePath}`, 'error'));
+  if (runtime !== THEME_RUNTIME_V0_4) {
+    if (/\{\{[#/][^}]+\}\}/.test(content) || /\{\{!--[\s\S]*?--\}\}|\{\{![^}]*\}\}/.test(content)) {
+      errors.push(issue('MUSTACHE_BLOCK_NOT_ALLOWED', templatePath, `Mustache block syntax is not allowed in ${templatePath}`, 'error'));
+    }
+    return;
+  }
+
+  validateRuntimeV04TemplateSyntax(templatePath, content, errors);
+}
+
+function validateRuntimeV04TemplateSyntax(templatePath, content, errors) {
+  const stack = [];
+  let index = 0;
+
+  while (index < content.length) {
+    const start = content.indexOf('{{', index);
+    if (start === -1) {
+      break;
+    }
+
+    if (content.startsWith('{{!--', start)) {
+      const end = content.indexOf('--}}', start + 5);
+      if (end === -1) {
+        errors.push(issue('MALFORMED_TEMPLATE_COMMENT', templatePath, `Unclosed block comment in ${templatePath}`, 'error'));
+        return;
+      }
+      index = end + 4;
+      continue;
+    }
+
+    if (content.startsWith('{{!', start)) {
+      const end = content.indexOf('}}', start + 3);
+      if (end === -1) {
+        errors.push(issue('MALFORMED_TEMPLATE_COMMENT', templatePath, `Unclosed inline comment in ${templatePath}`, 'error'));
+        return;
+      }
+      index = end + 2;
+      continue;
+    }
+
+    const end = content.indexOf('}}', start + 2);
+    if (end === -1) {
+      errors.push(issue('MALFORMED_TEMPLATE_TAG', templatePath, `Unclosed template tag in ${templatePath}`, 'error'));
+      return;
+    }
+
+    const token = content.slice(start + 2, end).trim();
+    index = end + 2;
+
+    if (!token.startsWith('#') && !token.startsWith('/')) {
+      continue;
+    }
+
+    if (token === '#else') {
+      const current = stack[stack.length - 1];
+      if (!current || (current.tag !== 'if' && current.tag !== 'if_eq')) {
+        errors.push(issue('UNEXPECTED_TEMPLATE_ELSE', templatePath, `Unexpected {{#else}} in ${templatePath}`, 'error'));
+        return;
+      }
+      if (current.hasElse) {
+        errors.push(issue('DUPLICATE_TEMPLATE_ELSE', templatePath, `Duplicate {{#else}} in ${templatePath}`, 'error'));
+        return;
+      }
+      current.hasElse = true;
+      continue;
+    }
+
+    if (token.startsWith('/')) {
+      const closingTag = token.slice(1).trim();
+      if (!['if', 'if_eq', 'for'].includes(closingTag)) {
+        errors.push(issue('UNSUPPORTED_TEMPLATE_TAG', templatePath, `Unsupported template closing tag '{{${token}}}' in ${templatePath}`, 'error'));
+        return;
+      }
+
+      const current = stack.pop();
+      if (!current || current.tag !== closingTag) {
+        errors.push(issue('INVALID_TEMPLATE_BLOCK', templatePath, `Mismatched closing tag '{{${token}}}' in ${templatePath}`, 'error'));
+        return;
+      }
+      continue;
+    }
+
+    if (/^#if [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/.test(token)) {
+      stack.push({ tag: 'if', hasElse: false });
+      continue;
+    }
+
+    if (/^#if_eq [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)* "(?:[^"\\]|\\.)*"$/.test(token)) {
+      stack.push({ tag: 'if_eq', hasElse: false });
+      continue;
+    }
+
+    if (/^#for [a-zA-Z_][a-zA-Z0-9_]* in [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/.test(token)) {
+      stack.push({ tag: 'for', hasElse: false });
+      continue;
+    }
+
+    errors.push(issue('UNSUPPORTED_TEMPLATE_TAG', templatePath, `Unsupported template tag '{{${token}}}' in ${templatePath}`, 'error'));
+    return;
+  }
+
+  if (stack.length > 0) {
+    const current = stack[stack.length - 1];
+    errors.push(issue('UNCLOSED_TEMPLATE_BLOCK', templatePath, `Unclosed '{{#${current.tag}}}' block in ${templatePath}`, 'error'));
   }
 }
 

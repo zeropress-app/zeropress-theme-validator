@@ -5,13 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   DEFAULT_RUNTIME,
+  THEME_RUNTIME_V0_4,
   validateNamespace,
   validateSlug,
   validateThemeManifest,
   validateThemeFiles,
 } from '../src/index.js';
 
-function createValidThemeFiles() {
+function createValidThemeFiles(runtime = DEFAULT_RUNTIME) {
   return {
     'theme.json': JSON.stringify({
       name: 'Test Theme',
@@ -19,7 +20,7 @@ function createValidThemeFiles() {
       slug: 'test-theme',
       version: '1.0.0',
       license: 'MIT',
-      runtime: '0.3',
+      runtime,
       description: 'A test theme',
     }),
     'layout.html': '<main>{{slot:content}}</main>',
@@ -136,7 +137,7 @@ test('validateThemeFiles rejects invalid license values', async () => {
   assert.equal(result.errors.some((issue) => issue.code === 'INVALID_LICENSE'), true);
 });
 
-test('validateThemeFiles requires runtime 0.3', async () => {
+test('validateThemeFiles rejects unsupported runtime versions', async () => {
   const files = createValidThemeFiles();
   files['theme.json'] = JSON.stringify({
     name: 'Test Theme',
@@ -149,6 +150,59 @@ test('validateThemeFiles requires runtime 0.3', async () => {
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);
   assert.equal(result.errors.some((issue) => issue.code === 'INVALID_RUNTIME_VERSION'), true);
+});
+
+test('validateThemeFiles accepts runtime 0.4 manifests', async () => {
+  const result = await validateThemeFiles(createValidThemeFiles(THEME_RUNTIME_V0_4));
+  assert.equal(result.ok, true);
+  assert.equal(result.manifest?.runtime, THEME_RUNTIME_V0_4);
+});
+
+test('validateThemeFiles accepts supported v0.4 control-flow and comment syntax', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['index.html'] = `
+{{! inline note }}
+{{#if widgets.sidebar.items}}
+  {{#for widget in widgets.sidebar.items}}
+    {{#if_eq widget.type "profile"}}
+      <section>{{widget.title}}</section>
+    {{#else}}
+      <p>fallback</p>
+    {{/if_eq}}
+  {{/for}}
+{{/if}}
+{{!-- block note --}}
+`;
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, true);
+});
+
+test('validateThemeFiles rejects v0.4 duplicate else blocks', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['index.html'] = '{{#if widgets.sidebar.items}}A{{#else}}B{{#else}}C{{/if}}';
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'DUPLICATE_TEMPLATE_ELSE'), true);
+});
+
+test('validateThemeFiles rejects unsupported v0.4 tags', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['index.html'] = '{{#if_neq widget.type "profile"}}x{{/if_neq}}';
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'UNSUPPORTED_TEMPLATE_TAG'), true);
+});
+
+test('validateThemeFiles rejects malformed v0.4 comments', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['index.html'] = '{{!-- broken';
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'MALFORMED_TEMPLATE_COMMENT'), true);
 });
 
 test('validateThemeFiles rejects invalid namespace and slug manifest fields', async () => {

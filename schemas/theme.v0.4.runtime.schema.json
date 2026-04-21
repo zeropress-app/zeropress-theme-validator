@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zeropress.dev/schemas/theme.v0.4.runtime.schema.json",
+  "title": "ZeroPress Theme Manifest (Runtime v0.4)",
+  "description": "Metadata manifest for a ZeroPress theme that targets the v0.4 runtime.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "name",
+    "namespace",
+    "slug",
+    "version",
+    "license",
+    "runtime"
+  ],
+  "$defs": {
+    "menuSlotDefinition": {
+      "type": "object",
+      "description": "Admin-facing helper metadata for a single recommended menu id declared by the theme.",
+      "markdownDescription": "Admin-facing helper metadata for a single recommended menu id declared by the theme. This does not assign a menu; it only documents a commonly expected id.",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "description": "Human-readable label shown in helper UIs.",
+          "markdownDescription": "Human-readable label shown in helper UIs, for example `Primary Menu` or `Footer Menu`.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "description": {
+          "description": "Optional help text that explains where this menu slot is typically rendered.",
+          "markdownDescription": "Optional help text that explains where this menu slot is typically rendered, for example `Main header navigation`.",
+          "type": "string",
+          "maxLength": 160
+        }
+      }
+    },
+    "widgetAreaDefinition": {
+      "type": "object",
+      "description": "Admin-facing helper metadata for a single recommended widget area id declared by the theme.",
+      "markdownDescription": "Admin-facing helper metadata for a single recommended `widget_area_id` declared by the theme. This does not assign widgets; it only documents a commonly expected area id.",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "description": "Human-readable label shown in helper UIs.",
+          "markdownDescription": "Human-readable label shown in helper UIs, for example `Sidebar Widgets` or `Header Widgets`.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "description": {
+          "description": "Optional help text that explains where this widget area is typically rendered.",
+          "markdownDescription": "Optional help text that explains where this widget area is typically rendered, for example `Widgets shown next to article and page content`.",
+          "type": "string",
+          "maxLength": 160
+        }
+      }
+    }
+  },
+  "properties": {
+    "name": {
+      "description": "Human-readable theme name shown in admin UIs and listings.",
+      "markdownDescription": "Human-readable theme name shown in admin UIs and listings.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "namespace": {
+      "description": "Publisher or organization slug that owns the theme.",
+      "markdownDescription": "Publisher or organization slug that owns the theme. Use lowercase letters, numbers, and hyphens only.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 24
+    },
+    "slug": {
+      "description": "Unique theme identifier used in package and registry contexts.",
+      "markdownDescription": "Unique theme identifier used in package and registry contexts. Use lowercase letters, numbers, and hyphens only.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 32
+    },
+    "version": {
+      "description": "Theme version in semantic versioning format.",
+      "markdownDescription": "Theme version in semantic versioning format, for example `0.4.0`.",
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "license": {
+      "description": "SPDX license identifier for the theme.",
+      "markdownDescription": "SPDX license identifier for the theme.",
+      "type": "string",
+      "enum": [
+        "MIT",
+        "Apache-2.0",
+        "BSD-3-Clause",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later"
+      ]
+    },
+    "runtime": {
+      "description": "Target ZeroPress theme runtime version.",
+      "markdownDescription": "Target ZeroPress theme runtime version. This schema currently supports `0.4` only.",
+      "type": "string",
+      "const": "0.4"
+    },
+    "author": {
+      "description": "Optional display name for the theme author or maintainer.",
+      "markdownDescription": "Optional display name for the theme author or maintainer.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "description": {
+      "description": "Optional short summary used in theme listings.",
+      "markdownDescription": "Optional short summary used in theme listings.",
+      "type": "string",
+      "maxLength": 280
+    },
+    "thumbnail": {
+      "description": "Optional thumbnail URL or asset path used for previews.",
+      "markdownDescription": "Optional thumbnail URL or asset path used for previews.",
+      "type": "string"
+    },
+    "settings": {
+      "description": "Optional theme-defined settings exposed to the runtime or admin UI.",
+      "markdownDescription": "Optional theme-defined settings exposed to the runtime or admin UI.",
+      "type": "object"
+    },
+    "menuSlots": {
+      "description": "Optional map of menu slots declared by the theme.",
+      "markdownDescription": "Optional map of recommended `menu_id` values declared by the theme. Keys are stable identifiers such as `primary`, `footer`, or `docs-sidebar`. This field is informational helper metadata for admin UIs and documentation; it does not assign menus or affect build behavior.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 12,
+      "propertyNames": {
+        "description": "Menu slot identifier.",
+        "markdownDescription": "Recommended `menu_id` identifier. Use lowercase letters, numbers, and internal hyphens only.",
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+        "minLength": 1,
+        "maxLength": 32
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/menuSlotDefinition"
+      }
+    },
+    "widgetAreas": {
+      "description": "Optional map of widget areas declared by the theme.",
+      "markdownDescription": "Optional map of recommended `widget_area_id` values declared by the theme. Keys are stable identifiers such as `sidebar`, `header`, or `docs-sidebar`. This field is informational helper metadata for admin UIs and documentation; it does not assign widgets or affect build behavior.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 12,
+      "propertyNames": {
+        "description": "Widget area identifier.",
+        "markdownDescription": "Recommended `widget_area_id` identifier. Use lowercase letters, numbers, and internal hyphens only.",
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+        "minLength": 1,
+        "maxLength": 32
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/widgetAreaDefinition"
+      }
+    }
+  },
+  "examples": [
+    {
+      "name": "ZeroPress Starter Theme",
+      "namespace": "official",
+      "slug": "starter-theme",
+      "version": "0.4.0",
+      "license": "MIT",
+      "runtime": "0.4",
+      "description": "Starter theme",
+      "menuSlots": {
+        "primary": {
+          "title": "Primary Menu",
+          "description": "Main header navigation"
+        },
+        "docs-sidebar": {
+          "title": "Docs Sidebar",
+          "description": "Documentation side navigation"
+        }
+      },
+      "widgetAreas": {
+        "sidebar": {
+          "title": "Sidebar Widgets",
+          "description": "Widgets shown next to article and page content"
+        },
+        "header": {
+          "title": "Header Widgets",
+          "description": "Optional widgets shown in the header area"
+        }
+      }
+    }
+  ]
+}
