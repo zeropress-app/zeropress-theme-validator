@@ -1,6 +1,6 @@
 {
   "name": "@zeropress/theme-validator",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Shared ZeroPress theme validation core",
   "type": "module",
   "license": "MIT",
