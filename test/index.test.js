@@ -158,6 +158,66 @@ test('validateThemeFiles accepts runtime 0.4 manifests', async () => {
   assert.equal(result.manifest?.runtime, THEME_RUNTIME_V0_4);
 });
 
+test('validateThemeFiles accepts valid features metadata', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.4',
+    features: {
+      comments: true,
+      newsletter: false,
+    },
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, true);
+  assert.equal(result.manifest?.features?.comments, true);
+  assert.equal(result.manifest?.features?.newsletter, false);
+});
+
+test('validateThemeFiles rejects unknown theme features', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.4',
+    features: {
+      comments: true,
+      contact: true,
+    },
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_THEME_FEATURE'), true);
+});
+
+test('validateThemeFiles rejects non-boolean theme feature values', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.4',
+    features: {
+      comments: 'yes',
+    },
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_THEME_FEATURE_VALUE'), true);
+});
+
 test('validateThemeFiles accepts supported v0.4 control-flow and comment syntax', async () => {
   const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
   files['index.html'] = `

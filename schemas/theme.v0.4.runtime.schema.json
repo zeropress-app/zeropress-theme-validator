@@ -134,6 +134,24 @@
       "markdownDescription": "Optional theme-defined settings exposed to the runtime or admin UI.",
       "type": "object"
     },
+    "features": {
+      "description": "Optional theme capability flags exposed to the runtime and tooling.",
+      "markdownDescription": "Optional theme capability flags exposed to the runtime and tooling. These flags declare whether the theme is designed to support specific feature surfaces such as comments or newsletter islands.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "comments": {
+          "description": "Whether the theme supports the comments island capability.",
+          "markdownDescription": "Whether the theme supports the comments island capability.",
+          "type": "boolean"
+        },
+        "newsletter": {
+          "description": "Whether the theme supports newsletter UI capability.",
+          "markdownDescription": "Whether the theme supports newsletter UI capability.",
+          "type": "boolean"
+        }
+      }
+    },
     "menuSlots": {
       "description": "Optional map of menu slots declared by the theme.",
       "markdownDescription": "Optional map of recommended `menu_id` values declared by the theme. Keys are stable identifiers such as `primary`, `footer`, or `docs-sidebar`. This field is informational helper metadata for admin UIs and documentation; it does not assign menus or affect build behavior.",
@@ -180,6 +198,10 @@
       "license": "MIT",
       "runtime": "0.4",
       "description": "Starter theme",
+      "features": {
+        "comments": true,
+        "newsletter": false
+      },
       "menuSlots": {
         "primary": {
           "title": "Primary Menu",

@@ -30,6 +30,51 @@ export const MENU_SLOT_ID_MAX_LENGTH = 32;
 export const MENU_SLOT_COUNT_MAX = 12;
 export const MENU_SLOT_TITLE_MAX_LENGTH = 80;
 export const MENU_SLOT_DESCRIPTION_MAX_LENGTH = 160;
+const SUPPORTED_THEME_FEATURES = new Set(['comments', 'newsletter']);
+
+function validateFeatureFlags(rawValue, errors) {
+  if (rawValue === undefined) {
+    return undefined;
+  }
+
+  if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) {
+    errors.push(issue(
+      'INVALID_FEATURES',
+      'theme.json',
+      "theme.json field 'features' must be an object when present",
+      'error'
+    ));
+    return undefined;
+  }
+
+  const normalizedFeatures = {};
+
+  for (const [featureName, value] of Object.entries(rawValue)) {
+    if (!SUPPORTED_THEME_FEATURES.has(featureName)) {
+      errors.push(issue(
+        'INVALID_THEME_FEATURE',
+        `theme.json.features.${featureName}`,
+        `Unknown theme feature '${featureName}'`,
+        'error'
+      ));
+      continue;
+    }
+
+    if (typeof value !== 'boolean') {
+      errors.push(issue(
+        'INVALID_THEME_FEATURE_VALUE',
+        `theme.json.features.${featureName}`,
+        `theme feature '${featureName}' must be a boolean`,
+        'error'
+      ));
+      continue;
+    }
+
+    normalizedFeatures[featureName] = value;
+  }
+
+  return Object.keys(normalizedFeatures).length > 0 ? normalizedFeatures : undefined;
+}
 
 function validateHelperMetadataMap(rawValue, fieldName, issueCodes, errors) {
   if (rawValue === undefined) {
@@ -353,6 +398,11 @@ function validateManifest(themeJson) {
     } else {
       manifest.description = description;
     }
+  }
+
+  const features = validateFeatureFlags(themeJson.features, errors);
+  if (features) {
+    manifest.features = features;
   }
 
   const menuSlots = validateHelperMetadataMap(themeJson.menuSlots, 'menuSlots', {

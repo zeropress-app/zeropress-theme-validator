@@ -11,9 +11,13 @@ export interface ThemeManifest {
   slug: string;
   version: string;
   license: 'MIT' | 'Apache-2.0' | 'BSD-3-Clause' | 'GPL-3.0-only' | 'GPL-3.0-or-later';
-  runtime: '0.3';
+  runtime: '0.3' | '0.4';
   author?: string;
   description?: string;
+  features?: {
+    comments?: boolean;
+    newsletter?: boolean;
+  };
   menuSlots?: Record<string, {
     title: string;
     description?: string;
