@@ -2,6 +2,8 @@ const REQUIRED_TEMPLATES = ['layout.html', 'index.html', 'post.html', 'page.html
 const OPTIONAL_TEMPLATES = ['archive.html', 'category.html', 'tag.html'];
 const REQUIRED_FILES = ['theme.json', 'assets/style.css'];
 const ALLOWED_SLOTS = new Set(['content', 'header', 'footer', 'meta']);
+const PARTIAL_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_-]*(?:\/[a-zA-Z_][a-zA-Z0-9_-]*)*$/;
+const PARTIAL_TAG_REGEX = /\{\{partial:([^}]+)\}\}/g;
 const COMMENTS_PLACEHOLDER = '{{post.comments_html}}';
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 export const NAMESPACE_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -260,6 +262,7 @@ export async function validateThemeFiles(fileMap, options = {}) {
 
   const templatesToCheck = new Set([...REQUIRED_TEMPLATES, ...OPTIONAL_TEMPLATES, 'layout.html', '404.html']);
   const templateContents = new Map();
+  const partialContents = new Map();
 
   for (const templatePath of templatesToCheck) {
     if (!files.has(templatePath)) {
@@ -270,6 +273,18 @@ export async function validateThemeFiles(fileMap, options = {}) {
     validateTemplateSyntax(templatePath, content, { errors, runtime: manifest?.runtime || DEFAULT_RUNTIME });
   }
 
+  for (const [filePath, value] of files.entries()) {
+    if (!filePath.startsWith('partials/') || !filePath.endsWith('.html')) {
+      continue;
+    }
+
+    const partialName = filePath.slice('partials/'.length, -'.html'.length);
+    const content = getText(value);
+    partialContents.set(partialName, content);
+    validateTemplateSyntax(filePath, content, { errors, runtime: manifest?.runtime || DEFAULT_RUNTIME });
+  }
+
+  validatePartialReferences(templateContents, partialContents, { errors, runtime: manifest?.runtime || DEFAULT_RUNTIME });
   validateCommentsPlaceholderGuidance(templateContents, warnings);
 
   return {
@@ -466,7 +481,11 @@ function validateTemplateSyntax(templatePath, content, context) {
   }
 
   if (runtime !== THEME_RUNTIME_V0_4) {
-    if (/\{\{[#/][^}]+\}\}/.test(content) || /\{\{!--[\s\S]*?--\}\}|\{\{![^}]*\}\}/.test(content)) {
+    if (
+      /\{\{[#/][^}]+\}\}/.test(content) ||
+      /\{\{!--[\s\S]*?--\}\}|\{\{![^}]*\}\}/.test(content) ||
+      /\{\{partial:[^}]+\}\}/.test(content)
+    ) {
       errors.push(issue('MUSTACHE_BLOCK_NOT_ALLOWED', templatePath, `Mustache block syntax is not allowed in ${templatePath}`, 'error'));
     }
     return;
@@ -513,6 +532,15 @@ function validateRuntimeV04TemplateSyntax(templatePath, content, errors) {
 
     const token = content.slice(start + 2, end).trim();
     index = end + 2;
+
+    if (token.startsWith('partial:')) {
+      const partialName = token.slice('partial:'.length).trim();
+      if (!PARTIAL_NAME_REGEX.test(partialName)) {
+        errors.push(issue('INVALID_PARTIAL_REFERENCE', templatePath, `Invalid partial reference '{{${token}}}' in ${templatePath}`, 'error'));
+        return;
+      }
+      continue;
+    }
 
     if (!token.startsWith('#') && !token.startsWith('/')) {
       continue;
@@ -570,6 +598,97 @@ function validateRuntimeV04TemplateSyntax(templatePath, content, errors) {
     const current = stack[stack.length - 1];
     errors.push(issue('UNCLOSED_TEMPLATE_BLOCK', templatePath, `Unclosed '{{#${current.tag}}}' block in ${templatePath}`, 'error'));
   }
+}
+
+function validatePartialReferences(templateContents, partialContents, context) {
+  const { errors } = context;
+  const runtime = context.runtime || DEFAULT_RUNTIME;
+
+  if (runtime !== THEME_RUNTIME_V0_4) {
+    return;
+  }
+
+  for (const [templatePath, content] of templateContents.entries()) {
+    for (const partialName of getReferencedPartialNames(content)) {
+      if (!partialContents.has(partialName)) {
+        errors.push(issue(
+          'MISSING_PARTIAL',
+          templatePath,
+          `Template '${templatePath}' references missing partial '${partialName}'`,
+          'error'
+        ));
+      }
+    }
+  }
+
+  const partialGraph = new Map();
+  for (const [partialName, content] of partialContents.entries()) {
+    const references = getReferencedPartialNames(content);
+    partialGraph.set(partialName, references);
+
+    for (const referencedPartial of references) {
+      if (!partialContents.has(referencedPartial)) {
+        errors.push(issue(
+          'MISSING_PARTIAL',
+          `partials/${partialName}.html`,
+          `Partial '${partialName}' references missing partial '${referencedPartial}'`,
+          'error'
+        ));
+      }
+    }
+  }
+
+  const visited = new Set();
+  const active = [];
+
+  const visit = (partialName) => {
+    if (active.includes(partialName)) {
+      const cycleStart = active.indexOf(partialName);
+      const cycle = [...active.slice(cycleStart), partialName];
+      errors.push(issue(
+        'PARTIAL_CYCLE',
+        `partials/${partialName}.html`,
+        `Circular partial reference detected: ${cycle.join(' -> ')}`,
+        'error'
+      ));
+      return;
+    }
+
+    if (visited.has(partialName)) {
+      return;
+    }
+
+    visited.add(partialName);
+    active.push(partialName);
+
+    for (const referencedPartial of partialGraph.get(partialName) || []) {
+      if (!partialGraph.has(referencedPartial)) {
+        continue;
+      }
+      visit(referencedPartial);
+    }
+
+    active.pop();
+  };
+
+  for (const partialName of partialGraph.keys()) {
+    visit(partialName);
+  }
+}
+
+function getReferencedPartialNames(content) {
+  const matches = new Set();
+  let match;
+
+  while ((match = PARTIAL_TAG_REGEX.exec(content)) !== null) {
+    const partialName = match[1].trim();
+    if (PARTIAL_NAME_REGEX.test(partialName)) {
+      matches.add(partialName);
+    }
+  }
+
+  PARTIAL_TAG_REGEX.lastIndex = 0;
+  return matches;
 }
 
 function validateCommentsPlaceholderGuidance(templateContents, warnings) {

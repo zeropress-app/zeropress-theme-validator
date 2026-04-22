@@ -108,6 +108,43 @@ test('validateThemeManifest validates manifest-only input', () => {
   assert.equal(result.manifest?.slug, 'test-theme');
 });
 
+test('validateThemeFiles and validateThemeManifest return the same normalized manifest', async () => {
+  const themeJson = {
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.4',
+    author: 'ZeroPress',
+    description: 'A test theme',
+    features: {
+      comments: true,
+      newsletter: false,
+    },
+    menuSlots: {
+      primary: {
+        title: 'Primary Menu',
+      },
+    },
+    widgetAreas: {
+      sidebar: {
+        title: 'Sidebar Widgets',
+      },
+    },
+  };
+
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['theme.json'] = JSON.stringify(themeJson);
+
+  const filesResult = await validateThemeFiles(files);
+  const manifestResult = validateThemeManifest(themeJson);
+
+  assert.equal(filesResult.ok, true);
+  assert.equal(manifestResult.ok, true);
+  assert.deepEqual(filesResult.manifest, manifestResult.manifest);
+});
+
 test('validateThemeFiles requires license', async () => {
   const files = createValidThemeFiles();
   files['theme.json'] = JSON.stringify({
@@ -236,6 +273,45 @@ test('validateThemeFiles accepts supported v0.4 control-flow and comment syntax'
 
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, true);
+});
+
+test('validateThemeFiles accepts supported v0.4 partial syntax', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['index.html'] = '<aside>{{partial:sidebar-widgets}}</aside>';
+  files['partials/sidebar-widgets.html'] = '<section>{{#if site.title}}{{site.title}}{{/if}}</section>';
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, true);
+});
+
+test('validateThemeFiles rejects partial syntax outside runtime 0.4', async () => {
+  const files = createValidThemeFiles();
+  files['index.html'] = '<aside>{{partial:sidebar-widgets}}</aside>';
+  files['partials/sidebar-widgets.html'] = '<section>Sidebar</section>';
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'MUSTACHE_BLOCK_NOT_ALLOWED'), true);
+});
+
+test('validateThemeFiles rejects missing partial references', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['index.html'] = '<aside>{{partial:sidebar-widgets}}</aside>';
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'MISSING_PARTIAL'), true);
+});
+
+test('validateThemeFiles rejects circular partial references', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_4);
+  files['index.html'] = '<aside>{{partial:sidebar-widgets}}</aside>';
+  files['partials/sidebar-widgets.html'] = '{{partial:sidebar/profile}}';
+  files['partials/sidebar/profile.html'] = '{{partial:sidebar-widgets}}';
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'PARTIAL_CYCLE'), true);
 });
 
 test('validateThemeFiles rejects v0.4 duplicate else blocks', async () => {
