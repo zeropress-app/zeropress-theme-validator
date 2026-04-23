@@ -25,7 +25,7 @@ function createValidThemeFiles(runtime = DEFAULT_RUNTIME) {
     }),
     'layout.html': '<main>{{slot:content}}</main>',
     'index.html': '<h1>{{site.title}}</h1>',
-    'post.html': '<article>{{post.title}}{{post.comments_html}}</article>',
+    'post.html': '<article>{{post.title}}</article>',
     'page.html': '<section>{{page.title}}</section>',
     'assets/style.css': 'body { color: black; }',
     'partials/header.html': '<header>Header</header>',
@@ -73,14 +73,14 @@ test('validateThemeFiles reports invalid semver', async () => {
     slug: 'test-theme',
     version: '1.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
   });
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);
   assert.equal(result.errors.some((issue) => issue.code === 'INVALID_SEMVER'), true);
 });
 
-test('validateThemeFiles accepts a valid v0.3 manifest without author', async () => {
+test('validateThemeFiles accepts a valid v0.4 manifest without author', async () => {
   const result = await validateThemeFiles(createValidThemeFiles());
   assert.equal(result.ok, true);
   assert.equal(result.manifest?.author, undefined);
@@ -101,7 +101,7 @@ test('validateThemeManifest validates manifest-only input', () => {
     slug: 'test-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
   });
 
   assert.equal(result.ok, true);
@@ -152,7 +152,7 @@ test('validateThemeFiles requires license', async () => {
     namespace: 'test-studio',
     slug: 'test-theme',
     version: '1.0.0',
-    runtime: '0.3',
+    runtime: '0.4',
   });
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);
@@ -167,7 +167,7 @@ test('validateThemeFiles rejects invalid license values', async () => {
     slug: 'test-theme',
     version: '1.0.0',
     license: 'ISC',
-    runtime: '0.3',
+    runtime: '0.4',
   });
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);
@@ -284,14 +284,20 @@ test('validateThemeFiles accepts supported v0.4 partial syntax', async () => {
   assert.equal(result.ok, true);
 });
 
-test('validateThemeFiles rejects partial syntax outside runtime 0.4', async () => {
+test('validateThemeFiles rejects runtime 0.3 manifests', async () => {
   const files = createValidThemeFiles();
-  files['index.html'] = '<aside>{{partial:sidebar-widgets}}</aside>';
-  files['partials/sidebar-widgets.html'] = '<section>Sidebar</section>';
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.3',
+  });
 
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);
-  assert.equal(result.errors.some((issue) => issue.code === 'MUSTACHE_BLOCK_NOT_ALLOWED'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_RUNTIME_VERSION'), true);
 });
 
 test('validateThemeFiles rejects missing partial references', async () => {
@@ -349,7 +355,7 @@ test('validateThemeFiles rejects invalid namespace and slug manifest fields', as
     slug: 'bad--slug',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
   });
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);
@@ -365,7 +371,7 @@ test('validateThemeFiles rejects manifest fields that exceed max lengths', async
     slug: 'test-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
     author: 'A'.repeat(81),
     description: 'D'.repeat(281),
   });
@@ -392,7 +398,7 @@ test('validateThemeFiles accepts valid menuSlots metadata', async () => {
     slug: 'test-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
     menuSlots: {
       primary: {
         title: 'Primary Menu',
@@ -417,7 +423,7 @@ test('validateThemeFiles allows menuSlots that reuse template slot names', async
     slug: 'test-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
     menuSlots: {
       header: {
         title: 'Header Menu',
@@ -444,7 +450,7 @@ test('validateThemeFiles rejects invalid menuSlots metadata', async () => {
     slug: 'test-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
     menuSlots: {
       'Bad Slot': {
         title: 'Bad Slot',
@@ -471,7 +477,7 @@ test('validateThemeFiles accepts valid widgetAreas metadata', async () => {
     slug: 'test-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
     widgetAreas: {
       sidebar: {
         title: 'Sidebar Widgets',
@@ -496,7 +502,7 @@ test('validateThemeFiles allows widgetAreas that reuse template slot names', asy
     slug: 'test-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
     widgetAreas: {
       header: {
         title: 'Header Widgets',
@@ -523,7 +529,7 @@ test('validateThemeFiles rejects invalid widgetAreas metadata', async () => {
     slug: 'test-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
     widgetAreas: {
       'Bad Area': {
         title: 'Bad Area',
@@ -550,7 +556,7 @@ test('validateThemeFiles rejects empty widgetAreas metadata', async () => {
     slug: 'test-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
     widgetAreas: {},
   });
 
@@ -567,7 +573,7 @@ test('validateThemeFiles accepts menuSlots and widgetAreas together', async () =
     slug: 'test-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
     menuSlots: {
       primary: {
         title: 'Primary Menu',
@@ -586,14 +592,6 @@ test('validateThemeFiles accepts menuSlots and widgetAreas together', async () =
   assert.equal(result.manifest?.widgetAreas?.sidebar?.title, 'Sidebar Widgets');
 });
 
-test('validateThemeFiles reports forbidden Mustache blocks', async () => {
-  const files = createValidThemeFiles();
-  files['index.html'] = '{{#if site.title}}ok{{/if}}';
-  const result = await validateThemeFiles(files);
-  assert.equal(result.ok, false);
-  assert.equal(result.errors.some((issue) => issue.code === 'MUSTACHE_BLOCK_NOT_ALLOWED'), true);
-});
-
 test('validateThemeFiles reports script tags in layout.html', async () => {
   const files = createValidThemeFiles();
   files['layout.html'] = '<main>{{slot:content}}</main><script>alert(1)</script>';
@@ -602,15 +600,11 @@ test('validateThemeFiles reports script tags in layout.html', async () => {
   assert.equal(result.errors.some((issue) => issue.code === 'LAYOUT_SCRIPT_NOT_ALLOWED'), true);
 });
 
-test('validateThemeFiles warns on missing optional templates and comment placeholder misuse', async () => {
+test('validateThemeFiles warns on missing optional templates', async () => {
   const files = createValidThemeFiles();
-  delete files['post.html'];
-  files['post.html'] = '<article>{{post.title}}</article>';
-  files['index.html'] = `<h1>{{site.title}}</h1>${'{{post.comments_html}}'}`;
+  delete files['archive.html'];
   const result = await validateThemeFiles(files);
   assert.equal(result.warnings.some((issue) => issue.code === 'MISSING_OPTIONAL_TEMPLATE' && issue.path === 'archive.html'), true);
-  assert.equal(result.warnings.some((issue) => issue.code === 'MISSING_POST_COMMENTS_PLACEHOLDER'), true);
-  assert.equal(result.warnings.some((issue) => issue.code === 'COMMENTS_PLACEHOLDER_OUTSIDE_POST_TEMPLATE'), true);
 });
 
 test('validateThemeFiles reports path traversal and symlink escape', async () => {
@@ -665,6 +659,5 @@ test('validateThemeFiles rejects symlink targets that only share the same string
 });
 
 test('published schema files are stored outside src', async () => {
-  await fs.access(new URL('../schemas/theme.v0.3.runtime.schema.json', import.meta.url));
-  await fs.access(new URL('../schemas/theme.v0.2.runtime.schema.json', import.meta.url));
+  await fs.access(new URL('../schemas/theme.v0.4.runtime.schema.json', import.meta.url));
 });

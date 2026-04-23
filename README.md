@@ -12,7 +12,7 @@ This package is the single source of truth for runtime theme validation used by:
 - `backend_api_v2`
 - `themes.zeropress.org-api`
 
-It implements the current runtime v0.3 validation rules defined in [ZeroPress Theme Runtime Spec v0.3](https://zeropress.dev/spec/theme-runtime-v0.3.html).
+It implements the current runtime v0.4 validation rules defined in [ZeroPress Theme Runtime Spec v0.4](https://zeropress.dev/spec/theme-runtime-v0.4.html).
 
 ---
 
@@ -39,7 +39,7 @@ import {
 Schema exports:
 
 ```js
-import runtimeSchemaUrl from '@zeropress/theme-validator/theme.v0.3.runtime.schema.json';
+import runtimeSchemaUrl from '@zeropress/theme-validator/theme.v0.4.runtime.schema.json';
 ```
 
 Published schema files are shipped from the package `schemas/` directory, and package subpath exports are versioned.
@@ -114,7 +114,7 @@ const result = await validateThemeFiles(files, {
     slug: 'my-theme',
     version: '1.0.0',
     license: 'MIT',
-    runtime: '0.3',
+    runtime: '0.4',
     description: 'Optional',
     menuSlots: {
       primary: {
@@ -175,9 +175,6 @@ Issue objects use this shape:
 ### Warnings
 
 - `archive.html`, `category.html`, `tag.html` missing
-- `post.html` missing `{{post.comments_html}}`
-- `{{post.comments_html}}` used outside `post.html`
-
 ---
 
 ## Requirements
@@ -191,7 +188,7 @@ Issue objects use this shape:
 
 - [@zeropress/theme](https://www.npmjs.com/package/@zeropress/theme)
 - [create-zeropress-theme](https://www.npmjs.com/package/create-zeropress-theme)
-- [ZeroPress Theme Runtime Spec v0.3](https://zeropress.dev/spec/theme-runtime-v0.3.html)
+- [ZeroPress Theme Runtime Spec v0.4](https://zeropress.dev/spec/theme-runtime-v0.4.html)
 
 ---
 

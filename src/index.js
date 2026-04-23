@@ -4,7 +4,6 @@ const REQUIRED_FILES = ['theme.json', 'assets/style.css'];
 const ALLOWED_SLOTS = new Set(['content', 'header', 'footer', 'meta']);
 const PARTIAL_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_-]*(?:\/[a-zA-Z_][a-zA-Z0-9_-]*)*$/;
 const PARTIAL_TAG_REGEX = /\{\{partial:([^}]+)\}\}/g;
-const COMMENTS_PLACEHOLDER = '{{post.comments_html}}';
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 export const NAMESPACE_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -16,9 +15,9 @@ export const ALLOWED_LICENSES = [
   'GPL-3.0-or-later',
 ];
 const LICENSES = new Set(ALLOWED_LICENSES);
-export const DEFAULT_RUNTIME = '0.3';
-export const THEME_RUNTIME_V0_4 = '0.4';
-export const SUPPORTED_RUNTIMES = [DEFAULT_RUNTIME, THEME_RUNTIME_V0_4];
+export const DEFAULT_RUNTIME = '0.4';
+export const THEME_RUNTIME_V0_4 = DEFAULT_RUNTIME;
+export const SUPPORTED_RUNTIMES = [DEFAULT_RUNTIME];
 const SUPPORTED_RUNTIME_SET = new Set(SUPPORTED_RUNTIMES);
 export const NAMESPACE_MIN_LENGTH = 3;
 export const NAMESPACE_MAX_LENGTH = 24;
@@ -285,8 +284,6 @@ export async function validateThemeFiles(fileMap, options = {}) {
   }
 
   validatePartialReferences(templateContents, partialContents, { errors, runtime: manifest?.runtime || DEFAULT_RUNTIME });
-  validateCommentsPlaceholderGuidance(templateContents, warnings);
-
   return {
     ok: errors.length === 0,
     errors,
@@ -455,7 +452,6 @@ function validateManifest(themeJson) {
 
 function validateTemplateSyntax(templatePath, content, context) {
   const { errors } = context;
-  const runtime = context.runtime || DEFAULT_RUNTIME;
   const slotRegex = /\{\{slot:([a-zA-Z0-9_-]+)\}\}/g;
   const contentSlotMatches = content.match(/\{\{slot:content\}\}/g) || [];
 
@@ -478,17 +474,6 @@ function validateTemplateSyntax(templatePath, content, context) {
 
   if (/\{\{slot:[^}]*\{\{slot:/.test(content)) {
     errors.push(issue('NESTED_SLOT', templatePath, `Nested slots are not allowed in ${templatePath}`, 'error'));
-  }
-
-  if (runtime !== THEME_RUNTIME_V0_4) {
-    if (
-      /\{\{[#/][^}]+\}\}/.test(content) ||
-      /\{\{!--[\s\S]*?--\}\}|\{\{![^}]*\}\}/.test(content) ||
-      /\{\{partial:[^}]+\}\}/.test(content)
-    ) {
-      errors.push(issue('MUSTACHE_BLOCK_NOT_ALLOWED', templatePath, `Mustache block syntax is not allowed in ${templatePath}`, 'error'));
-    }
-    return;
   }
 
   validateRuntimeV04TemplateSyntax(templatePath, content, errors);
@@ -602,11 +587,6 @@ function validateRuntimeV04TemplateSyntax(templatePath, content, errors) {
 
 function validatePartialReferences(templateContents, partialContents, context) {
   const { errors } = context;
-  const runtime = context.runtime || DEFAULT_RUNTIME;
-
-  if (runtime !== THEME_RUNTIME_V0_4) {
-    return;
-  }
 
   for (const [templatePath, content] of templateContents.entries()) {
     for (const partialName of getReferencedPartialNames(content)) {
@@ -689,30 +669,6 @@ function getReferencedPartialNames(content) {
 
   PARTIAL_TAG_REGEX.lastIndex = 0;
   return matches;
-}
-
-function validateCommentsPlaceholderGuidance(templateContents, warnings) {
-  const postTemplate = templateContents.get('post.html');
-  if (typeof postTemplate === 'string' && !postTemplate.includes(COMMENTS_PLACEHOLDER)) {
-    warnings.push(issue(
-      'MISSING_POST_COMMENTS_PLACEHOLDER',
-      'post.html',
-      "Consider adding '{{post.comments_html}}' to post.html to render post comments",
-      'warning'
-    ));
-  }
-
-  for (const [templatePath, content] of templateContents.entries()) {
-    if (templatePath === 'post.html' || !content.includes(COMMENTS_PLACEHOLDER)) {
-      continue;
-    }
-    warnings.push(issue(
-      'COMMENTS_PLACEHOLDER_OUTSIDE_POST_TEMPLATE',
-      templatePath,
-      "'{{post.comments_html}}' should be used in post.html, not in this template",
-      'warning'
-    ));
-  }
 }
 
 function validatePathSafety(pathEntries, errors) {

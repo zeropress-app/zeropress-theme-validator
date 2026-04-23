@@ -11,7 +11,7 @@ export interface ThemeManifest {
   slug: string;
   version: string;
   license: 'MIT' | 'Apache-2.0' | 'BSD-3-Clause' | 'GPL-3.0-only' | 'GPL-3.0-or-later';
-  runtime: '0.3' | '0.4';
+  runtime: '0.4';
   author?: string;
   description?: string;
   features?: {
@@ -54,7 +54,8 @@ export interface ManifestValidationResult {
   manifest?: ThemeManifest;
 }
 
-export const DEFAULT_RUNTIME: '0.3';
+export const DEFAULT_RUNTIME: '0.4';
+export const THEME_RUNTIME_V0_4: '0.4';
 export const ALLOWED_LICENSES: ReadonlyArray<'MIT' | 'Apache-2.0' | 'BSD-3-Clause' | 'GPL-3.0-only' | 'GPL-3.0-or-later'>;
 export const NAMESPACE_MIN_LENGTH: number;
 export const NAMESPACE_MAX_LENGTH: number;
