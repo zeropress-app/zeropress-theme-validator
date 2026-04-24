@@ -6,7 +6,7 @@
   "license": "MIT",
   "exports": {
     ".": "./src/index.js",
-    "./theme.v0.4.runtime.schema.json": "./schemas/theme.v0.4.runtime.schema.json"
+    "./theme.v0.5.runtime.schema.json": "./schemas/theme.v0.5.runtime.schema.json"
   },
   "types": "./src/index.d.ts",
   "files": [

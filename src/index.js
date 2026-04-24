@@ -3,7 +3,9 @@ const OPTIONAL_TEMPLATES = ['archive.html', 'category.html', 'tag.html'];
 const REQUIRED_FILES = ['theme.json', 'assets/style.css'];
 const ALLOWED_SLOTS = new Set(['content', 'header', 'footer', 'meta']);
 const PARTIAL_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_-]*(?:\/[a-zA-Z_][a-zA-Z0-9_-]*)*$/;
-const PARTIAL_TAG_REGEX = /\{\{partial:([^}]+)\}\}/g;
+const PARTIAL_TAG_REGEX = /\{\{(partial:[^}]+)\}\}/g;
+const TEMPLATE_PATH_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/;
+const PARTIAL_ARG_KEY_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 export const NAMESPACE_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -15,8 +17,8 @@ export const ALLOWED_LICENSES = [
   'GPL-3.0-or-later',
 ];
 const LICENSES = new Set(ALLOWED_LICENSES);
-export const DEFAULT_RUNTIME = '0.4';
-export const THEME_RUNTIME_V0_4 = DEFAULT_RUNTIME;
+export const DEFAULT_RUNTIME = '0.5';
+export const THEME_RUNTIME_V0_5 = DEFAULT_RUNTIME;
 export const SUPPORTED_RUNTIMES = [DEFAULT_RUNTIME];
 const SUPPORTED_RUNTIME_SET = new Set(SUPPORTED_RUNTIMES);
 export const NAMESPACE_MIN_LENGTH = 3;
@@ -476,12 +478,13 @@ function validateTemplateSyntax(templatePath, content, context) {
     errors.push(issue('NESTED_SLOT', templatePath, `Nested slots are not allowed in ${templatePath}`, 'error'));
   }
 
-  validateRuntimeV04TemplateSyntax(templatePath, content, errors);
+  validateRuntimeV05TemplateSyntax(templatePath, content, errors);
 }
 
-function validateRuntimeV04TemplateSyntax(templatePath, content, errors) {
+function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
   const stack = [];
   let index = 0;
+  const isPartialFile = templatePath.startsWith('partials/');
 
   while (index < content.length) {
     const start = content.indexOf('{{', index);
@@ -519,15 +522,22 @@ function validateRuntimeV04TemplateSyntax(templatePath, content, errors) {
     index = end + 2;
 
     if (token.startsWith('partial:')) {
-      const partialName = token.slice('partial:'.length).trim();
-      if (!PARTIAL_NAME_REGEX.test(partialName)) {
-        errors.push(issue('INVALID_PARTIAL_REFERENCE', templatePath, `Invalid partial reference '{{${token}}}' in ${templatePath}`, 'error'));
+      try {
+        parsePartialReferenceToken(token);
+      } catch (error) {
+        errors.push(issue(
+          'INVALID_PARTIAL_REFERENCE',
+          templatePath,
+          `Invalid partial reference '{{${token}}}' in ${templatePath}: ${error instanceof Error ? error.message : String(error)}`,
+          'error'
+        ));
         return;
       }
       continue;
     }
 
     if (!token.startsWith('#') && !token.startsWith('/')) {
+      validateReservedPathUsage(token, templatePath, errors, stack, { isPartialFile });
       continue;
     }
 
@@ -542,6 +552,45 @@ function validateRuntimeV04TemplateSyntax(templatePath, content, errors) {
         return;
       }
       current.hasElse = true;
+      continue;
+    }
+
+    if (token.startsWith('#else_if_eq ')) {
+      const current = stack[stack.length - 1];
+      if (!current || current.tag !== 'if_eq') {
+        errors.push(issue('UNEXPECTED_TEMPLATE_ELSE_IF', templatePath, `Unexpected {{${token}}} in ${templatePath}`, 'error'));
+        return;
+      }
+      if (current.hasElse) {
+        errors.push(issue('INVALID_TEMPLATE_BRANCH_ORDER', templatePath, `{{${token}}} cannot appear after {{#else}} in ${templatePath}`, 'error'));
+        return;
+      }
+      const expression = token.slice('#else_if_eq '.length).trim();
+      const parsed = parseIfEqExpression(expression);
+      if (!parsed) {
+        errors.push(issue('UNSUPPORTED_TEMPLATE_TAG', templatePath, `Unsupported template tag '{{${token}}}' in ${templatePath}`, 'error'));
+        return;
+      }
+      validateReservedPathUsage(parsed.path, templatePath, errors, stack, { isPartialFile });
+      continue;
+    }
+
+    if (token.startsWith('#else_if ')) {
+      const current = stack[stack.length - 1];
+      if (!current || current.tag !== 'if') {
+        errors.push(issue('UNEXPECTED_TEMPLATE_ELSE_IF', templatePath, `Unexpected {{${token}}} in ${templatePath}`, 'error'));
+        return;
+      }
+      if (current.hasElse) {
+        errors.push(issue('INVALID_TEMPLATE_BRANCH_ORDER', templatePath, `{{${token}}} cannot appear after {{#else}} in ${templatePath}`, 'error'));
+        return;
+      }
+      const path = token.slice('#else_if '.length).trim();
+      if (!TEMPLATE_PATH_REGEX.test(path)) {
+        errors.push(issue('UNSUPPORTED_TEMPLATE_TAG', templatePath, `Unsupported template tag '{{${token}}}' in ${templatePath}`, 'error'));
+        return;
+      }
+      validateReservedPathUsage(path, templatePath, errors, stack, { isPartialFile });
       continue;
     }
 
@@ -560,17 +609,32 @@ function validateRuntimeV04TemplateSyntax(templatePath, content, errors) {
       continue;
     }
 
-    if (/^#if [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/.test(token)) {
+    if (token.startsWith('#if ')) {
+      const path = token.slice('#if '.length).trim();
+      if (!TEMPLATE_PATH_REGEX.test(path)) {
+        errors.push(issue('UNSUPPORTED_TEMPLATE_TAG', templatePath, `Unsupported template tag '{{${token}}}' in ${templatePath}`, 'error'));
+        return;
+      }
+      validateReservedPathUsage(path, templatePath, errors, stack, { isPartialFile });
       stack.push({ tag: 'if', hasElse: false });
       continue;
     }
 
-    if (/^#if_eq [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)* "(?:[^"\\]|\\.)*"$/.test(token)) {
+    if (token.startsWith('#if_eq ')) {
+      const expression = token.slice('#if_eq '.length).trim();
+      const parsed = parseIfEqExpression(expression);
+      if (!parsed) {
+        errors.push(issue('UNSUPPORTED_TEMPLATE_TAG', templatePath, `Unsupported template tag '{{${token}}}' in ${templatePath}`, 'error'));
+        return;
+      }
+      validateReservedPathUsage(parsed.path, templatePath, errors, stack, { isPartialFile });
       stack.push({ tag: 'if_eq', hasElse: false });
       continue;
     }
 
     if (/^#for [a-zA-Z_][a-zA-Z0-9_]* in [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/.test(token)) {
+      const path = token.replace(/^#for [a-zA-Z_][a-zA-Z0-9_]* in /, '');
+      validateReservedPathUsage(path, templatePath, errors, stack, { isPartialFile });
       stack.push({ tag: 'for', hasElse: false });
       continue;
     }
@@ -583,6 +647,42 @@ function validateRuntimeV04TemplateSyntax(templatePath, content, errors) {
     const current = stack[stack.length - 1];
     errors.push(issue('UNCLOSED_TEMPLATE_BLOCK', templatePath, `Unclosed '{{#${current.tag}}}' block in ${templatePath}`, 'error'));
   }
+}
+
+function validateReservedPathUsage(path, templatePath, errors, stack, options = {}) {
+  if (!TEMPLATE_PATH_REGEX.test(path)) {
+    return;
+  }
+
+  const insideFor = stack.some((entry) => entry.tag === 'for');
+  if (path.startsWith('loop.') && !insideFor && !options.isPartialFile) {
+    errors.push(issue(
+      'INVALID_LOOP_REFERENCE',
+      templatePath,
+      `Reserved loop metadata path '${path}' can only be used inside a {{#for}} block in ${templatePath}`,
+      'error'
+    ));
+  }
+
+  if (path.startsWith('partial.') && !options.isPartialFile) {
+    errors.push(issue(
+      'INVALID_PARTIAL_REFERENCE_SCOPE',
+      templatePath,
+      `Reserved partial argument path '${path}' can only be used inside a partial file in ${templatePath}`,
+      'error'
+    ));
+  }
+}
+
+function parseIfEqExpression(expression) {
+  const match = /^([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s+("(?:[^"\\]|\\.)*")$/.exec(expression);
+  if (!match) {
+    return null;
+  }
+  return {
+    path: match[1],
+    literal: match[2],
+  };
 }
 
 function validatePartialReferences(templateContents, partialContents, context) {
@@ -661,14 +761,128 @@ function getReferencedPartialNames(content) {
   let match;
 
   while ((match = PARTIAL_TAG_REGEX.exec(content)) !== null) {
-    const partialName = match[1].trim();
-    if (PARTIAL_NAME_REGEX.test(partialName)) {
-      matches.add(partialName);
+    try {
+      const { name } = parsePartialReferenceToken(match[1]);
+      matches.add(name);
+    } catch {
+      // Template syntax validation reports malformed partial tags.
     }
   }
 
   PARTIAL_TAG_REGEX.lastIndex = 0;
   return matches;
+}
+
+function parsePartialReferenceToken(token) {
+  const source = String(token || '').trim();
+  if (!source.startsWith('partial:')) {
+    throw new Error('Partial token must start with partial:');
+  }
+
+  const expression = source.slice('partial:'.length).trim();
+  const nameMatch = /^([a-zA-Z_][a-zA-Z0-9_-]*(?:\/[a-zA-Z_][a-zA-Z0-9_-]*)*)(?:\s+|$)/.exec(expression);
+  if (!nameMatch) {
+    throw new Error('Invalid partial name');
+  }
+
+  const name = nameMatch[1];
+  if (!PARTIAL_NAME_REGEX.test(name)) {
+    throw new Error(`Invalid partial name '${name}'`);
+  }
+
+  const argsSource = expression.slice(name.length).trim();
+  parsePartialArgs(argsSource);
+
+  return { name };
+}
+
+function parsePartialArgs(source) {
+  if (!source) {
+    return {};
+  }
+
+  const args = {};
+  let index = 0;
+
+  while (index < source.length) {
+    while (index < source.length && /\s/.test(source[index])) {
+      index += 1;
+    }
+
+    if (index >= source.length) {
+      break;
+    }
+
+    const keyMatch = /^[a-zA-Z_][a-zA-Z0-9_]*/.exec(source.slice(index));
+    if (!keyMatch) {
+      throw new Error(`Invalid partial argument syntax near "${source.slice(index)}"`);
+    }
+
+    const key = keyMatch[0];
+    if (!PARTIAL_ARG_KEY_REGEX.test(key)) {
+      throw new Error(`Invalid partial argument key '${key}'`);
+    }
+    if (Object.prototype.hasOwnProperty.call(args, key)) {
+      throw new Error(`Duplicate partial argument '${key}'`);
+    }
+
+    index += key.length;
+    if (source[index] !== '=') {
+      throw new Error(`Expected "=" after partial argument '${key}'`);
+    }
+    index += 1;
+
+    if (source[index] === '"') {
+      let cursor = index + 1;
+      let escaped = false;
+
+      while (cursor < source.length) {
+        const char = source[cursor];
+        if (escaped) {
+          escaped = false;
+          cursor += 1;
+          continue;
+        }
+        if (char === '\\') {
+          escaped = true;
+          cursor += 1;
+          continue;
+        }
+        if (char === '"') {
+          break;
+        }
+        cursor += 1;
+      }
+
+      if (cursor >= source.length || source[cursor] !== '"') {
+        throw new Error(`Unclosed string literal for partial argument '${key}'`);
+      }
+
+      args[key] = JSON.parse(source.slice(index, cursor + 1));
+      index = cursor + 1;
+      continue;
+    }
+
+    if (source.startsWith('true', index) && isValueBoundary(source, index + 4)) {
+      args[key] = true;
+      index += 4;
+      continue;
+    }
+
+    if (source.startsWith('false', index) && isValueBoundary(source, index + 5)) {
+      args[key] = false;
+      index += 5;
+      continue;
+    }
+
+    throw new Error(`Unsupported partial argument value for '${key}'`);
+  }
+
+  return args;
+}
+
+function isValueBoundary(source, index) {
+  return index >= source.length || /\s/.test(source[index]);
 }
 
 function validatePathSafety(pathEntries, errors) {
