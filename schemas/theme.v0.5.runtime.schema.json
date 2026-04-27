@@ -64,6 +64,11 @@
     }
   },
   "properties": {
+    "$schema": {
+      "description": "Optional JSON Schema URI or path used by editors and tooling. ZeroPress core does not interpret this value.",
+      "markdownDescription": "Optional JSON Schema URI or path used by editors and tooling. ZeroPress core does not interpret this value.",
+      "type": "string"
+    },
     "name": {
       "description": "Human-readable theme name shown in admin UIs and listings.",
       "markdownDescription": "Human-readable theme name shown in admin UIs and listings.",

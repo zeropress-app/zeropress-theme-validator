@@ -96,6 +96,7 @@ test('validateNamespace and validateSlug share runtime rules', () => {
 
 test('validateThemeManifest validates manifest-only input', () => {
   const result = validateThemeManifest({
+    $schema: 'https://zeropress.dev/schemas/theme.v0.5.runtime.schema.json',
     name: 'Test Theme',
     namespace: 'test-studio',
     slug: 'test-theme',
@@ -106,6 +107,22 @@ test('validateThemeManifest validates manifest-only input', () => {
 
   assert.equal(result.ok, true);
   assert.equal(result.manifest?.slug, 'test-theme');
+});
+
+test('validateThemeManifest rejects non-string root $schema editor hint', () => {
+  const result = validateThemeManifest({
+    $schema: true,
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.5',
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_SCHEMA_HINT'), true);
+  assert.equal(result.errors.some((issue) => issue.path === 'theme.json.$schema'), true);
 });
 
 test('validateThemeFiles and validateThemeManifest return the same normalized manifest', async () => {

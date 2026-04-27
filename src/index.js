@@ -328,6 +328,15 @@ function validateManifest(themeJson) {
     runtime: '',
   };
 
+  if (themeJson.$schema !== undefined && typeof themeJson.$schema !== 'string') {
+    errors.push(issue(
+      'INVALID_SCHEMA_HINT',
+      'theme.json.$schema',
+      "theme.json field '$schema' must be a string when present",
+      'error'
+    ));
+  }
+
   for (const key of ['name', 'namespace', 'slug', 'version', 'license', 'runtime']) {
     if (typeof themeJson[key] !== 'string' || themeJson[key].trim() === '') {
       errors.push(issue('INVALID_THEME_METADATA', 'theme.json', `theme.json field '${key}' must be a non-empty string`, 'error'));
