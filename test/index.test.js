@@ -292,6 +292,58 @@ test('validateThemeFiles accepts supported v0.5 control-flow and comment syntax'
   assert.equal(result.ok, true);
 });
 
+test('validateThemeFiles accepts internal hyphens in template path segments', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_5);
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.5',
+    menuSlots: {
+      'docs-sidebar': {
+        title: 'Docs Sidebar',
+      },
+    },
+  });
+  files['index.html'] = `
+{{#if menus.docs-sidebar.items}}
+  {{#for section in menus.docs-sidebar.items}}
+    {{#if section.custom-title}}
+      <section>{{section.custom-title}}</section>
+    {{#else_if section.fallback-title}}
+      <section>{{section.fallback-title}}</section>
+    {{/if}}
+    {{#if_eq section.custom-kind "guide"}}
+      <span>{{section.custom-kind}}</span>
+    {{/if_eq}}
+  {{/for}}
+{{/if}}
+`;
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, true);
+});
+
+test('validateThemeFiles rejects malformed hyphenated template path segments', async () => {
+  for (const invalidPath of ['menus.-bad.items', 'menus.bad-.items', 'menus.bad--key.items']) {
+    const files = createValidThemeFiles(THEME_RUNTIME_V0_5);
+    files['index.html'] = `
+{{#if ${invalidPath}}}x{{/if}}
+{{${invalidPath}}}
+`;
+
+    const result = await validateThemeFiles(files);
+    assert.equal(result.ok, false, invalidPath);
+    assert.equal(
+      result.errors.some((issue) => issue.code === 'UNSUPPORTED_TEMPLATE_TAG'),
+      true,
+      invalidPath,
+    );
+  }
+});
+
 test('validateThemeFiles accepts supported v0.5 partial syntax', async () => {
   const files = createValidThemeFiles(THEME_RUNTIME_V0_5);
   files['index.html'] = '<aside>{{partial:sidebar-widgets}}</aside>';

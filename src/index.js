@@ -4,7 +4,10 @@ const REQUIRED_FILES = ['theme.json', 'assets/style.css'];
 const ALLOWED_SLOTS = new Set(['content', 'header', 'footer', 'meta']);
 const PARTIAL_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_-]*(?:\/[a-zA-Z_][a-zA-Z0-9_-]*)*$/;
 const PARTIAL_TAG_REGEX = /\{\{(partial:[^}]+)\}\}/g;
-const TEMPLATE_PATH_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/;
+const TEMPLATE_PATH_SEGMENT_SOURCE = '[a-zA-Z_][a-zA-Z0-9_]*(?:-[a-zA-Z0-9_]+)*';
+const TEMPLATE_PATH_REGEX = new RegExp(`^${TEMPLATE_PATH_SEGMENT_SOURCE}(?:\\.${TEMPLATE_PATH_SEGMENT_SOURCE})*$`);
+const FOR_TAG_REGEX = new RegExp(`^#for ([a-zA-Z_][a-zA-Z0-9_]*) in (${TEMPLATE_PATH_SEGMENT_SOURCE}(?:\\.${TEMPLATE_PATH_SEGMENT_SOURCE})*)$`);
+const IF_EQ_EXPRESSION_REGEX = new RegExp(`^(${TEMPLATE_PATH_SEGMENT_SOURCE}(?:\\.${TEMPLATE_PATH_SEGMENT_SOURCE})*)\\s+("(?:[^"\\\\]|\\\\.)*")$`);
 const PARTIAL_ARG_KEY_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 export const NAMESPACE_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -546,6 +549,13 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
     }
 
     if (!token.startsWith('#') && !token.startsWith('/')) {
+      if (token.startsWith('slot:') || token.startsWith('menu:')) {
+        continue;
+      }
+      if (!TEMPLATE_PATH_REGEX.test(token)) {
+        errors.push(issue('UNSUPPORTED_TEMPLATE_TAG', templatePath, `Unsupported template tag '{{${token}}}' in ${templatePath}`, 'error'));
+        return;
+      }
       validateReservedPathUsage(token, templatePath, errors, stack, { isPartialFile });
       continue;
     }
@@ -641,8 +651,9 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
       continue;
     }
 
-    if (/^#for [a-zA-Z_][a-zA-Z0-9_]* in [a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/.test(token)) {
-      const path = token.replace(/^#for [a-zA-Z_][a-zA-Z0-9_]* in /, '');
+    const forMatch = FOR_TAG_REGEX.exec(token);
+    if (forMatch) {
+      const path = forMatch[2];
       validateReservedPathUsage(path, templatePath, errors, stack, { isPartialFile });
       stack.push({ tag: 'for', hasElse: false });
       continue;
@@ -684,7 +695,7 @@ function validateReservedPathUsage(path, templatePath, errors, stack, options = 
 }
 
 function parseIfEqExpression(expression) {
-  const match = /^([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s+("(?:[^"\\]|\\.)*")$/.exec(expression);
+  const match = IF_EQ_EXPRESSION_REGEX.exec(expression);
   if (!match) {
     return null;
   }
