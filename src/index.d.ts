@@ -17,6 +17,7 @@ export interface ThemeManifest {
   features?: {
     comments?: boolean;
     newsletter?: boolean;
+    postIndex?: boolean;
   };
   menuSlots?: Record<string, {
     title: string;

@@ -36,7 +36,7 @@ export const MENU_SLOT_ID_MAX_LENGTH = 32;
 export const MENU_SLOT_COUNT_MAX = 12;
 export const MENU_SLOT_TITLE_MAX_LENGTH = 80;
 export const MENU_SLOT_DESCRIPTION_MAX_LENGTH = 160;
-const SUPPORTED_THEME_FEATURES = new Set(['comments', 'newsletter']);
+const SUPPORTED_THEME_FEATURES = new Set(['comments', 'newsletter', 'postIndex']);
 
 function validateFeatureFlags(rawValue, errors) {
   if (rawValue === undefined) {

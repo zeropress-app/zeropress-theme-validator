@@ -138,6 +138,7 @@ test('validateThemeFiles and validateThemeManifest return the same normalized ma
     features: {
       comments: true,
       newsletter: false,
+      postIndex: true,
     },
     menuSlots: {
       primary: {
@@ -224,6 +225,7 @@ test('validateThemeFiles accepts valid features metadata', async () => {
     features: {
       comments: true,
       newsletter: false,
+      postIndex: true,
     },
   });
 
@@ -231,6 +233,7 @@ test('validateThemeFiles accepts valid features metadata', async () => {
   assert.equal(result.ok, true);
   assert.equal(result.manifest?.features?.comments, true);
   assert.equal(result.manifest?.features?.newsletter, false);
+  assert.equal(result.manifest?.features?.postIndex, true);
 });
 
 test('validateThemeFiles rejects unknown theme features', async () => {
@@ -264,6 +267,7 @@ test('validateThemeFiles rejects non-boolean theme feature values', async () => 
     runtime: '0.5',
     features: {
       comments: 'yes',
+      postIndex: 'no',
     },
   });
 

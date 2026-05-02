@@ -154,6 +154,11 @@
           "description": "Whether the theme supports newsletter UI capability.",
           "markdownDescription": "Whether the theme supports newsletter UI capability.",
           "type": "boolean"
+        },
+        "postIndex": {
+          "description": "Whether the theme supports post index routes.",
+          "markdownDescription": "Whether the theme supports post index routes. When `false`, build tooling treats the post index as disabled even if preview data requests one.",
+          "type": "boolean"
         }
       }
     },
@@ -205,7 +210,8 @@
       "description": "Starter theme",
       "features": {
         "comments": true,
-        "newsletter": false
+        "newsletter": false,
+        "postIndex": true
       },
       "menuSlots": {
         "primary": {
