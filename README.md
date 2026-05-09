@@ -126,6 +126,17 @@ const result = await validateThemeFiles(files, {
         title: 'Sidebar Widgets',
       },
     },
+    siteMeta: {
+      issue: {
+        title: 'Issue',
+        type: 'string',
+      },
+    },
+    collectionSlots: {
+      'cover-story': {
+        title: 'Cover Story',
+      },
+    },
   },
   checkedFiles: 6
 }
@@ -159,12 +170,16 @@ Issue objects use this shape:
 - `theme.json.name` longer than 80 characters
 - `theme.json.author` longer than 80 characters
 - `theme.json.description` longer than 280 characters
+- Unknown root fields in `theme.json`
 - Invalid `theme.json.menuSlots`
 - Invalid `theme.json.widgetAreas`
+- Invalid `theme.json.siteMeta`
+- Invalid `theme.json.collectionSlots`
 - Invalid menu slot ids
 - Invalid menu slot definitions or unknown slot properties
 - Invalid widget area ids
 - Invalid widget area definitions or unknown widget area properties
+- Removed `theme.json.settings`
 - `layout.html` missing or duplicating `{{slot:content}}`
 - Unknown slot names
 - Nested slot expressions

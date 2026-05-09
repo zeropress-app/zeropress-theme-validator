@@ -37,6 +37,27 @@ export const MENU_SLOT_COUNT_MAX = 12;
 export const MENU_SLOT_TITLE_MAX_LENGTH = 80;
 export const MENU_SLOT_DESCRIPTION_MAX_LENGTH = 160;
 const SUPPORTED_THEME_FEATURES = new Set(['comments', 'newsletter', 'postIndex']);
+const THEME_MANIFEST_KEYS = new Set([
+  '$schema',
+  'name',
+  'namespace',
+  'slug',
+  'version',
+  'license',
+  'runtime',
+  'author',
+  'description',
+  'thumbnail',
+  'features',
+  'menuSlots',
+  'widgetAreas',
+  'siteMeta',
+  'collectionSlots',
+]);
+const SITE_META_KEY_REGEX = /^[a-z][a-z0-9_]*(?:-[a-z0-9_]+)*$/;
+const SITE_META_KEY_MAX_LENGTH = 64;
+const SITE_META_COUNT_MAX = 32;
+const SITE_META_TYPES = new Set(['string', 'number', 'boolean']);
 
 function validateFeatureFlags(rawValue, errors) {
   if (rawValue === undefined) {
@@ -196,6 +217,156 @@ function validateHelperMetadataMap(rawValue, fieldName, issueCodes, errors) {
   return Object.keys(normalizedItems).length > 0 ? normalizedItems : undefined;
 }
 
+function validateSiteMetaMap(rawValue, errors) {
+  if (rawValue === undefined) {
+    return undefined;
+  }
+
+  if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) {
+    errors.push(issue(
+      'INVALID_SITE_META',
+      'theme.json',
+      "theme.json field 'siteMeta' must be an object when present",
+      'error'
+    ));
+    return undefined;
+  }
+
+  const entries = Object.entries(rawValue);
+  if (entries.length === 0) {
+    errors.push(issue(
+      'INVALID_SITE_META',
+      'theme.json',
+      "theme.json field 'siteMeta' must not be empty",
+      'error'
+    ));
+  }
+
+  if (entries.length > SITE_META_COUNT_MAX) {
+    errors.push(issue(
+      'INVALID_SITE_META',
+      'theme.json',
+      `theme.json field 'siteMeta' must contain at most ${SITE_META_COUNT_MAX} keys`,
+      'error'
+    ));
+  }
+
+  const normalizedItems = {};
+
+  for (const [metaKey, value] of entries) {
+    if (!SITE_META_KEY_REGEX.test(metaKey) || metaKey.length > SITE_META_KEY_MAX_LENGTH) {
+      errors.push(issue(
+        'INVALID_SITE_META_KEY',
+        `theme.json.siteMeta.${metaKey}`,
+        `siteMeta key '${metaKey}' must start with a lowercase letter and use lowercase letters, digits, underscores, or internal hyphens only`,
+        'error'
+      ));
+      continue;
+    }
+
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      errors.push(issue(
+        'INVALID_SITE_META_FIELD',
+        `theme.json.siteMeta.${metaKey}`,
+        `siteMeta key '${metaKey}' must be an object`,
+        'error'
+      ));
+      continue;
+    }
+
+    const allowedKeys = new Set(['title', 'description', 'type', 'default']);
+    for (const key of Object.keys(value)) {
+      if (!allowedKeys.has(key)) {
+        errors.push(issue(
+          'INVALID_SITE_META_PROPERTY',
+          `theme.json.siteMeta.${metaKey}.${key}`,
+          `Unknown siteMeta property '${key}' in key '${metaKey}'`,
+          'error'
+        ));
+      }
+    }
+
+    if (typeof value.title !== 'string' || value.title.trim() === '') {
+      errors.push(issue(
+        'INVALID_SITE_META_TITLE',
+        `theme.json.siteMeta.${metaKey}.title`,
+        `siteMeta key '${metaKey}' must define a non-empty 'title'`,
+        'error'
+      ));
+    } else if (value.title.trim().length > MENU_SLOT_TITLE_MAX_LENGTH) {
+      errors.push(issue(
+        'INVALID_SITE_META_TITLE',
+        `theme.json.siteMeta.${metaKey}.title`,
+        `siteMeta key '${metaKey}' title must be at most ${MENU_SLOT_TITLE_MAX_LENGTH} characters`,
+        'error'
+      ));
+    }
+
+    if (value.description !== undefined && (typeof value.description !== 'string' || value.description.trim().length > MENU_SLOT_DESCRIPTION_MAX_LENGTH)) {
+      errors.push(issue(
+        'INVALID_SITE_META_DESCRIPTION',
+        `theme.json.siteMeta.${metaKey}.description`,
+        `siteMeta key '${metaKey}' description must be a string at most ${MENU_SLOT_DESCRIPTION_MAX_LENGTH} characters`,
+        'error'
+      ));
+    }
+
+    if (value.type !== undefined && !SITE_META_TYPES.has(value.type)) {
+      errors.push(issue(
+        'INVALID_SITE_META_TYPE',
+        `theme.json.siteMeta.${metaKey}.type`,
+        `siteMeta key '${metaKey}' type must be one of: string, number, boolean`,
+        'error'
+      ));
+    }
+
+    if (value.default !== undefined) {
+      const defaultType = typeof value.default;
+      if (value.default !== null && defaultType !== 'string' && defaultType !== 'number' && defaultType !== 'boolean') {
+        errors.push(issue(
+          'INVALID_SITE_META_DEFAULT',
+          `theme.json.siteMeta.${metaKey}.default`,
+          `siteMeta key '${metaKey}' default must be a string, number, boolean, or null`,
+          'error'
+        ));
+      } else if (typeof value.type === 'string' && SITE_META_TYPES.has(value.type) && value.default !== null && defaultType !== value.type) {
+        errors.push(issue(
+          'INVALID_SITE_META_DEFAULT',
+          `theme.json.siteMeta.${metaKey}.default`,
+          `siteMeta key '${metaKey}' default must match its declared type`,
+          'error'
+        ));
+      }
+    }
+
+    if (
+      typeof value.title === 'string' &&
+      value.title.trim() !== '' &&
+      value.title.trim().length <= MENU_SLOT_TITLE_MAX_LENGTH &&
+      (value.description === undefined || (typeof value.description === 'string' && value.description.trim().length <= MENU_SLOT_DESCRIPTION_MAX_LENGTH)) &&
+      (value.type === undefined || SITE_META_TYPES.has(value.type)) &&
+      (value.default === undefined ||
+        value.default === null ||
+        typeof value.default === 'string' ||
+        typeof value.default === 'number' ||
+        typeof value.default === 'boolean')
+    ) {
+      normalizedItems[metaKey] = {
+        title: value.title.trim(),
+        ...(typeof value.description === 'string' && value.description.trim() !== ''
+          ? { description: value.description.trim() }
+          : {}),
+        ...(typeof value.type === 'string' && SITE_META_TYPES.has(value.type)
+          ? { type: value.type }
+          : {}),
+        ...(value.default !== undefined ? { default: value.default } : {}),
+      };
+    }
+  }
+
+  return Object.keys(normalizedItems).length > 0 ? normalizedItems : undefined;
+}
+
 export function validateNamespace(value) {
   const normalized = String(value || '').toLowerCase().trim();
   if (!NAMESPACE_REGEX.test(normalized) || normalized.length < NAMESPACE_MIN_LENGTH || normalized.length > NAMESPACE_MAX_LENGTH) {
@@ -331,6 +502,17 @@ function validateManifest(themeJson) {
     runtime: '',
   };
 
+  for (const key of Object.keys(themeJson)) {
+    if (!THEME_MANIFEST_KEYS.has(key)) {
+      errors.push(issue(
+        'UNKNOWN_THEME_MANIFEST_FIELD',
+        `theme.json.${key}`,
+        `Unknown theme.json field '${key}'`,
+        'error'
+      ));
+    }
+  }
+
   if (themeJson.$schema !== undefined && typeof themeJson.$schema !== 'string') {
     errors.push(issue(
       'INVALID_SCHEMA_HINT',
@@ -426,6 +608,19 @@ function validateManifest(themeJson) {
     }
   }
 
+  if (themeJson.thumbnail !== undefined) {
+    if (typeof themeJson.thumbnail !== 'string') {
+      errors.push(issue(
+        'INVALID_THUMBNAIL',
+        'theme.json.thumbnail',
+        "theme.json field 'thumbnail' must be a string when present",
+        'error'
+      ));
+    } else {
+      manifest.thumbnail = themeJson.thumbnail;
+    }
+  }
+
   const features = validateFeatureFlags(themeJson.features, errors);
   if (features) {
     manifest.features = features;
@@ -459,6 +654,26 @@ function validateManifest(themeJson) {
   }, errors);
   if (widgetAreas) {
     manifest.widgetAreas = widgetAreas;
+  }
+
+  const siteMeta = validateSiteMetaMap(themeJson.siteMeta, errors);
+  if (siteMeta) {
+    manifest.siteMeta = siteMeta;
+  }
+
+  const collectionSlots = validateHelperMetadataMap(themeJson.collectionSlots, 'collectionSlots', {
+    itemLabel: 'Collection slot',
+    propertyLabel: 'collection slot property',
+    collectionLabel: 'slots',
+    invalidCollectionCode: 'INVALID_COLLECTION_SLOTS',
+    invalidIdCode: 'INVALID_COLLECTION_SLOT_ID',
+    invalidItemCode: 'INVALID_COLLECTION_SLOT',
+    invalidPropertyCode: 'INVALID_COLLECTION_SLOT_PROPERTY',
+    invalidTitleCode: 'INVALID_COLLECTION_SLOT_TITLE',
+    invalidDescriptionCode: 'INVALID_COLLECTION_SLOT_DESCRIPTION',
+  }, errors);
+  if (collectionSlots) {
+    manifest.collectionSlots = collectionSlots;
   }
 
   return { errors, manifest: errors.length > 0 ? undefined : manifest };

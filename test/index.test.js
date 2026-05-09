@@ -150,6 +150,18 @@ test('validateThemeFiles and validateThemeManifest return the same normalized ma
         title: 'Sidebar Widgets',
       },
     },
+    siteMeta: {
+      show_sponsor_banner: {
+        title: 'Show Sponsor Banner',
+        type: 'boolean',
+        default: false,
+      },
+    },
+    collectionSlots: {
+      'cover-story': {
+        title: 'Cover Story',
+      },
+    },
   };
 
   const files = createValidThemeFiles(THEME_RUNTIME_V0_5);
@@ -161,6 +173,27 @@ test('validateThemeFiles and validateThemeManifest return the same normalized ma
   assert.equal(filesResult.ok, true);
   assert.equal(manifestResult.ok, true);
   assert.deepEqual(filesResult.manifest, manifestResult.manifest);
+});
+
+test('validateThemeFiles rejects unknown root manifest fields and removed settings', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.5',
+    settings: {
+      accent: 'blue',
+    },
+    routes: {},
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.path === 'theme.json.settings'), true);
+  assert.equal(result.errors.some((issue) => issue.path === 'theme.json.routes'), true);
 });
 
 test('validateThemeFiles requires license', async () => {
@@ -761,6 +794,90 @@ test('validateThemeFiles accepts menuSlots and widgetAreas together', async () =
   assert.equal(result.ok, true);
   assert.equal(result.manifest?.menuSlots?.primary?.title, 'Primary Menu');
   assert.equal(result.manifest?.widgetAreas?.sidebar?.title, 'Sidebar Widgets');
+});
+
+test('validateThemeFiles accepts valid siteMeta and collectionSlots metadata', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.5',
+    siteMeta: {
+      issue: {
+        title: 'Issue',
+        description: 'Issue label displayed near the masthead',
+        type: 'string',
+        default: 'Spring 2026',
+      },
+      show_sponsor_banner: {
+        title: 'Show Sponsor Banner',
+        type: 'boolean',
+        default: false,
+      },
+    },
+    collectionSlots: {
+      'cover-story': {
+        title: 'Cover Story',
+        description: 'Primary featured content area',
+      },
+    },
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, true);
+  assert.equal(result.manifest?.siteMeta?.issue?.type, 'string');
+  assert.equal(result.manifest?.collectionSlots?.['cover-story']?.title, 'Cover Story');
+});
+
+test('validateThemeFiles rejects invalid siteMeta and collectionSlots metadata', async () => {
+  const files = createValidThemeFiles();
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.5',
+    siteMeta: {
+      'Bad Key': {
+        title: 'Bad',
+      },
+      issue: {
+        title: '',
+        type: 'object',
+        default: {},
+        extra: true,
+      },
+      show_sponsor_banner: {
+        title: 'Show Sponsor Banner',
+        type: 'boolean',
+        default: 'false',
+      },
+    },
+    collectionSlots: {
+      'Bad Slot': {
+        title: 'Bad Slot',
+      },
+      'cover-story': {
+        title: '',
+        extra: true,
+      },
+    },
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_SITE_META_KEY'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_SITE_META_TITLE'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_SITE_META_TYPE'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_SITE_META_DEFAULT'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_SITE_META_PROPERTY'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_COLLECTION_SLOT_ID'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_COLLECTION_SLOT_TITLE'), true);
+  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_COLLECTION_SLOT_PROPERTY'), true);
 });
 
 test('validateThemeFiles reports script tags in layout.html', async () => {

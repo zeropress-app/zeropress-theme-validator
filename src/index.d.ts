@@ -14,6 +14,7 @@ export interface ThemeManifest {
   runtime: '0.5';
   author?: string;
   description?: string;
+  thumbnail?: string;
   features?: {
     comments?: boolean;
     newsletter?: boolean;
@@ -24,6 +25,16 @@ export interface ThemeManifest {
     description?: string;
   }>;
   widgetAreas?: Record<string, {
+    title: string;
+    description?: string;
+  }>;
+  siteMeta?: Record<string, {
+    title: string;
+    description?: string;
+    type?: 'string' | 'number' | 'boolean';
+    default?: string | number | boolean | null;
+  }>;
+  collectionSlots?: Record<string, {
     title: string;
     description?: string;
   }>;
