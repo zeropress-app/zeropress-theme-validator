@@ -10,31 +10,39 @@ export interface ThemeManifest {
   namespace: string;
   slug: string;
   version: string;
-  license: 'MIT' | 'Apache-2.0' | 'BSD-3-Clause' | 'GPL-3.0-only' | 'GPL-3.0-or-later';
-  runtime: '0.5';
+  license: 'MIT' | 'Apache-2.0' | 'BSD-3-Clause' | 'GPL-3.0-only' | 'GPL-3.0-or-later' | `LicenseRef-${string}`;
+  runtime: '0.6';
   author?: string;
   description?: string;
   thumbnail?: string;
+  links?: {
+    homepage?: string;
+    repository?: string;
+    documentation?: string;
+    support?: string;
+    marketplace?: string;
+    license?: string;
+  };
   features?: {
     comments?: boolean;
     newsletter?: boolean;
-    postIndex?: boolean;
+    post_index?: boolean;
   };
-  menuSlots?: Record<string, {
+  menu_slots?: Record<string, {
     title: string;
     description?: string;
   }>;
-  widgetAreas?: Record<string, {
+  widget_areas?: Record<string, {
     title: string;
     description?: string;
   }>;
-  siteMeta?: Record<string, {
+  site_meta?: Record<string, {
     title: string;
     description?: string;
     type?: 'string' | 'number' | 'boolean';
     default?: string | number | boolean | null;
   }>;
-  collectionSlots?: Record<string, {
+  collection_slots?: Record<string, {
     title: string;
     description?: string;
   }>;
@@ -66,8 +74,8 @@ export interface ManifestValidationResult {
   manifest?: ThemeManifest;
 }
 
-export const DEFAULT_RUNTIME: '0.5';
-export const THEME_RUNTIME_V0_5: '0.5';
+export const DEFAULT_RUNTIME: '0.6';
+export const THEME_RUNTIME_V0_6: '0.6';
 export const ALLOWED_LICENSES: ReadonlyArray<'MIT' | 'Apache-2.0' | 'BSD-3-Clause' | 'GPL-3.0-only' | 'GPL-3.0-or-later'>;
 export const NAMESPACE_MIN_LENGTH: number;
 export const NAMESPACE_MAX_LENGTH: number;

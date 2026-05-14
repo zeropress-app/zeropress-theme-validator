@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zeropress.dev/schemas/theme.v0.6.runtime.schema.json",
+  "title": "ZeroPress Theme Manifest (Runtime v0.6)",
+  "description": "Metadata manifest for a ZeroPress theme that targets the v0.6 runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "namespace",
+    "slug",
+    "version",
+    "license",
+    "runtime"
+  ],
+  "$defs": {
+    "menuSlotDefinition": {
+      "type": "object",
+      "description": "Admin-facing helper metadata for a single recommended menu id declared by the theme.",
+      "markdownDescription": "Admin-facing helper metadata for a single recommended menu id declared by the theme. This does not assign a menu; it only documents a commonly expected id.",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "description": "Human-readable label shown in helper UIs.",
+          "markdownDescription": "Human-readable label shown in helper UIs, for example `Primary Menu` or `Footer Menu`.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "description": {
+          "description": "Optional help text that explains where this menu slot is typically rendered.",
+          "markdownDescription": "Optional help text that explains where this menu slot is typically rendered, for example `Main header navigation`.",
+          "type": "string",
+          "maxLength": 160
+        }
+      }
+    },
+    "widgetAreaDefinition": {
+      "type": "object",
+      "description": "Admin-facing helper metadata for a single recommended widget area id declared by the theme.",
+      "markdownDescription": "Admin-facing helper metadata for a single recommended `widget_area_id` declared by the theme. This does not assign widgets; it only documents a commonly expected area id.",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "description": "Human-readable label shown in helper UIs.",
+          "markdownDescription": "Human-readable label shown in helper UIs, for example `Sidebar Widgets` or `Header Widgets`.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "description": {
+          "description": "Optional help text that explains where this widget area is typically rendered.",
+          "markdownDescription": "Optional help text that explains where this widget area is typically rendered, for example `Widgets shown next to article and page content`.",
+          "type": "string",
+          "maxLength": 160
+        }
+      }
+    },
+    "site_metaDefinition": {
+      "type": "object",
+      "description": "Admin-facing helper metadata for a single site.meta key understood by the theme.",
+      "markdownDescription": "Admin-facing helper metadata for a single `site.meta` key understood by the theme. This is a hint only; ZeroPress core does not compare it with preview-data values.",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "description": "Human-readable label shown in helper UIs.",
+          "markdownDescription": "Human-readable label shown in helper UIs.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "description": {
+          "description": "Optional help text that explains how the theme uses this metadata key.",
+          "markdownDescription": "Optional help text that explains how the theme uses this metadata key.",
+          "type": "string",
+          "maxLength": 160
+        },
+        "type": {
+          "description": "Optional recommended scalar value type for authoring tools.",
+          "markdownDescription": "Optional recommended scalar value type for authoring tools.",
+          "type": "string",
+          "enum": ["string", "number", "boolean"]
+        },
+        "default": {
+          "description": "Optional suggested default value for authoring tools.",
+          "markdownDescription": "Optional suggested default value for authoring tools.",
+          "type": ["string", "number", "boolean", "null"]
+        }
+      }
+    }
+  },
+  "properties": {
+    "$schema": {
+      "description": "Optional JSON Schema URI or path used by editors and tooling. ZeroPress core does not interpret this value.",
+      "markdownDescription": "Optional JSON Schema URI or path used by editors and tooling. ZeroPress core does not interpret this value.",
+      "type": "string"
+    },
+    "name": {
+      "description": "Human-readable theme name shown in admin UIs and listings.",
+      "markdownDescription": "Human-readable theme name shown in admin UIs and listings.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "namespace": {
+      "description": "Publisher or organization slug that owns the theme.",
+      "markdownDescription": "Publisher or organization slug that owns the theme. Use lowercase letters, numbers, and hyphens only.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 24
+    },
+    "slug": {
+      "description": "Unique theme identifier used in package and registry contexts.",
+      "markdownDescription": "Unique theme identifier used in package and registry contexts. Use lowercase letters, numbers, and hyphens only.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 32
+    },
+    "version": {
+      "description": "Theme version in semantic versioning format.",
+      "markdownDescription": "Theme version in semantic versioning format, for example `0.6.0`.",
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "license": {
+      "description": "License identifier for the theme. Use an SPDX id from the allowlist or a LicenseRef-* identifier for commercial, marketplace, proprietary, or otherwise non-SPDX terms.",
+      "markdownDescription": "License identifier for the theme. Use an SPDX id from the allowlist or a `LicenseRef-*` identifier for commercial, marketplace, proprietary, or otherwise non-SPDX terms.",
+      "type": "string",
+      "anyOf": [
+        {
+          "enum": [
+            "MIT",
+            "Apache-2.0",
+            "BSD-3-Clause",
+            "GPL-3.0-only",
+            "GPL-3.0-or-later"
+          ]
+        },
+        {
+          "pattern": "^LicenseRef-[A-Za-z0-9][A-Za-z0-9.-]*$"
+        }
+      ]
+    },
+    "runtime": {
+      "description": "Target ZeroPress theme runtime version.",
+      "markdownDescription": "Target ZeroPress theme runtime version. This schema currently supports `0.6` only.",
+      "type": "string",
+      "const": "0.6"
+    },
+    "author": {
+      "description": "Optional display name for the theme author or maintainer.",
+      "markdownDescription": "Optional display name for the theme author or maintainer.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "description": {
+      "description": "Optional short summary used in theme listings.",
+      "markdownDescription": "Optional short summary used in theme listings.",
+      "type": "string",
+      "maxLength": 280
+    },
+    "thumbnail": {
+      "description": "Optional thumbnail URL or asset path used for previews.",
+      "markdownDescription": "Optional thumbnail URL or asset path used for previews.",
+      "type": "string"
+    },
+    "links": {
+      "description": "Optional public links for theme information, support, marketplace listings, and license terms.",
+      "markdownDescription": "Optional public links for theme information, support, marketplace listings, and license terms. Values must be absolute `http`, `https`, or `mailto` URLs.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "homepage": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri",
+          "pattern": "^(https?:\\/\\/|mailto:)"
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri",
+          "pattern": "^(https?:\\/\\/|mailto:)"
+        },
+        "documentation": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri",
+          "pattern": "^(https?:\\/\\/|mailto:)"
+        },
+        "support": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri",
+          "pattern": "^(https?:\\/\\/|mailto:)"
+        },
+        "marketplace": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri",
+          "pattern": "^(https?:\\/\\/|mailto:)"
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri",
+          "pattern": "^(https?:\\/\\/|mailto:)"
+        }
+      }
+    },
+    "features": {
+      "description": "Optional theme capability flags exposed to the runtime and tooling.",
+      "markdownDescription": "Optional theme capability flags exposed to the runtime and tooling. These flags declare whether the theme is designed to support specific feature surfaces such as comments or newsletter islands.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "comments": {
+          "description": "Whether the theme supports the comments island capability.",
+          "markdownDescription": "Whether the theme supports the comments island capability.",
+          "type": "boolean"
+        },
+        "newsletter": {
+          "description": "Whether the theme supports newsletter UI capability.",
+          "markdownDescription": "Whether the theme supports newsletter UI capability.",
+          "type": "boolean"
+        },
+        "post_index": {
+          "description": "Whether the theme supports post index routes.",
+          "markdownDescription": "Whether the theme supports post index routes. When `false`, build tooling treats the post index as disabled even if preview data requests one.",
+          "type": "boolean"
+        }
+      }
+    },
+    "menu_slots": {
+      "description": "Optional map of menu slots declared by the theme.",
+      "markdownDescription": "Optional map of recommended `menu_id` values declared by the theme. Keys are stable identifiers such as `primary`, `footer`, or `docs-sidebar`. This field is informational helper metadata for admin UIs and documentation; it does not assign menus or affect build behavior.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 12,
+      "propertyNames": {
+        "description": "Menu slot identifier.",
+        "markdownDescription": "Recommended `menu_id` identifier. Use lowercase letters, numbers, and internal hyphens only.",
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+        "minLength": 1,
+        "maxLength": 32
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/menuSlotDefinition"
+      }
+    },
+    "widget_areas": {
+      "description": "Optional map of widget areas declared by the theme.",
+      "markdownDescription": "Optional map of recommended `widget_area_id` values declared by the theme. Keys are stable identifiers such as `sidebar`, `header`, or `docs-sidebar`. This field is informational helper metadata for admin UIs and documentation; it does not assign widgets or affect build behavior.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 12,
+      "propertyNames": {
+        "description": "Widget area identifier.",
+        "markdownDescription": "Recommended `widget_area_id` identifier. Use lowercase letters, numbers, and internal hyphens only.",
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+        "minLength": 1,
+        "maxLength": 32
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/widgetAreaDefinition"
+      }
+    },
+    "site_meta": {
+      "description": "Optional map of site.meta keys understood by the theme.",
+      "markdownDescription": "Optional map of `site.meta` keys understood by the theme. This field is informational helper metadata for admin UIs and documentation; it does not assign values or affect build behavior.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 32,
+      "propertyNames": {
+        "description": "site.meta key identifier.",
+        "markdownDescription": "`site.meta` key identifier. Use lowercase letters, digits, underscores, and internal hyphens only.",
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(?:-[a-z0-9_]+)*$",
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/site_metaDefinition"
+      }
+    },
+    "collection_slots": {
+      "description": "Optional map of collection slots declared by the theme.",
+      "markdownDescription": "Optional map of recommended collection ids declared by the theme. This field is informational helper metadata for admin UIs and documentation; it does not assign collections or affect build behavior.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 12,
+      "propertyNames": {
+        "description": "Collection slot identifier.",
+        "markdownDescription": "Recommended collection identifier. Use lowercase letters, numbers, and internal hyphens only.",
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+        "minLength": 1,
+        "maxLength": 32
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/menuSlotDefinition"
+      }
+    }
+  },
+  "examples": [
+    {
+      "name": "ZeroPress Starter Theme",
+      "namespace": "official",
+      "slug": "starter-theme",
+      "version": "0.6.0",
+      "license": "MIT",
+      "runtime": "0.6",
+      "description": "Starter theme",
+      "links": {
+        "homepage": "https://zeropress.app",
+        "documentation": "https://zeropress.dev/theme-authoring/",
+        "repository": "https://github.com/zeropress-app",
+        "support": "mailto:support@example.com",
+        "license": "https://opensource.org/license/mit"
+      },
+      "features": {
+        "comments": true,
+        "newsletter": false,
+        "post_index": true
+      },
+      "menu_slots": {
+        "primary": {
+          "title": "Primary Menu",
+          "description": "Main header navigation"
+        },
+        "docs-sidebar": {
+          "title": "Docs Sidebar",
+          "description": "Documentation side navigation"
+        }
+      },
+      "widget_areas": {
+        "sidebar": {
+          "title": "Sidebar Widgets",
+          "description": "Widgets shown next to article and page content"
+        },
+        "header": {
+          "title": "Header Widgets",
+          "description": "Optional widgets shown in the header area"
+        }
+      },
+      "site_meta": {
+        "show_sponsor_banner": {
+          "title": "Show Sponsor Banner",
+          "description": "Whether to display the sponsor banner.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "collection_slots": {
+        "cover-story": {
+          "title": "Cover Story",
+          "description": "Primary featured content area"
+        }
+      }
+    }
+  ]
+}

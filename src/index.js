@@ -10,6 +10,7 @@ const FOR_TAG_REGEX = new RegExp(`^#for ([a-zA-Z_][a-zA-Z0-9_]*) in (${TEMPLATE_
 const IF_EQ_EXPRESSION_REGEX = new RegExp(`^(${TEMPLATE_PATH_SEGMENT_SOURCE}(?:\\.${TEMPLATE_PATH_SEGMENT_SOURCE})*)\\s+("(?:[^"\\\\]|\\\\.)*")$`);
 const PARTIAL_ARG_KEY_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const LICENSE_REF_REGEX = /^LicenseRef-[A-Za-z0-9][A-Za-z0-9.-]*$/;
 export const NAMESPACE_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const ALLOWED_LICENSES = [
@@ -20,8 +21,10 @@ export const ALLOWED_LICENSES = [
   'GPL-3.0-or-later',
 ];
 const LICENSES = new Set(ALLOWED_LICENSES);
-export const DEFAULT_RUNTIME = '0.5';
-export const THEME_RUNTIME_V0_5 = DEFAULT_RUNTIME;
+const THEME_LINK_KEYS = new Set(['homepage', 'repository', 'documentation', 'support', 'marketplace', 'license']);
+const THEME_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
+export const DEFAULT_RUNTIME = '0.6';
+export const THEME_RUNTIME_V0_6 = DEFAULT_RUNTIME;
 export const SUPPORTED_RUNTIMES = [DEFAULT_RUNTIME];
 const SUPPORTED_RUNTIME_SET = new Set(SUPPORTED_RUNTIMES);
 export const NAMESPACE_MIN_LENGTH = 3;
@@ -36,7 +39,7 @@ export const MENU_SLOT_ID_MAX_LENGTH = 32;
 export const MENU_SLOT_COUNT_MAX = 12;
 export const MENU_SLOT_TITLE_MAX_LENGTH = 80;
 export const MENU_SLOT_DESCRIPTION_MAX_LENGTH = 160;
-const SUPPORTED_THEME_FEATURES = new Set(['comments', 'newsletter', 'postIndex']);
+const SUPPORTED_THEME_FEATURES = new Set(['comments', 'newsletter', 'post_index']);
 const THEME_MANIFEST_KEYS = new Set([
   '$schema',
   'name',
@@ -48,11 +51,12 @@ const THEME_MANIFEST_KEYS = new Set([
   'author',
   'description',
   'thumbnail',
+  'links',
   'features',
-  'menuSlots',
-  'widgetAreas',
-  'siteMeta',
-  'collectionSlots',
+  'menu_slots',
+  'widget_areas',
+  'site_meta',
+  'collection_slots',
 ]);
 const SITE_META_KEY_REGEX = /^[a-z][a-z0-9_]*(?:-[a-z0-9_]+)*$/;
 const SITE_META_KEY_MAX_LENGTH = 64;
@@ -101,6 +105,74 @@ function validateFeatureFlags(rawValue, errors) {
   }
 
   return Object.keys(normalizedFeatures).length > 0 ? normalizedFeatures : undefined;
+}
+
+function isAllowedLicense(value) {
+  return LICENSES.has(value) || LICENSE_REF_REGEX.test(value);
+}
+
+function isValidThemeLinkUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return THEME_LINK_PROTOCOLS.has(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function validateThemeLinks(rawValue, errors) {
+  if (rawValue === undefined) {
+    return undefined;
+  }
+
+  if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) {
+    errors.push(issue(
+      'INVALID_LINKS',
+      'theme.json.links',
+      "theme.json field 'links' must be an object when present",
+      'error'
+    ));
+    return undefined;
+  }
+
+  const normalizedLinks = {};
+
+  for (const [linkKey, value] of Object.entries(rawValue)) {
+    if (!THEME_LINK_KEYS.has(linkKey)) {
+      errors.push(issue(
+        'INVALID_THEME_LINK',
+        `theme.json.links.${linkKey}`,
+        `Unknown theme link '${linkKey}'`,
+        'error'
+      ));
+      continue;
+    }
+
+    if (typeof value !== 'string' || value.trim() === '') {
+      errors.push(issue(
+        'INVALID_THEME_LINK_VALUE',
+        `theme.json.links.${linkKey}`,
+        `theme link '${linkKey}' must be a non-empty URL string`,
+        'error'
+      ));
+      continue;
+    }
+
+    const normalizedValue = value.trim();
+    if (!isValidThemeLinkUrl(normalizedValue)) {
+      errors.push(issue(
+        'INVALID_THEME_LINK_VALUE',
+        `theme.json.links.${linkKey}`,
+        `theme link '${linkKey}' must be an absolute http, https, or mailto URL`,
+        'error'
+      ));
+      continue;
+    }
+
+    normalizedLinks[linkKey] = normalizedValue;
+  }
+
+  return Object.keys(normalizedLinks).length > 0 ? normalizedLinks : undefined;
 }
 
 function validateHelperMetadataMap(rawValue, fieldName, issueCodes, errors) {
@@ -226,7 +298,7 @@ function validateSiteMetaMap(rawValue, errors) {
     errors.push(issue(
       'INVALID_SITE_META',
       'theme.json',
-      "theme.json field 'siteMeta' must be an object when present",
+      "theme.json field 'site_meta' must be an object when present",
       'error'
     ));
     return undefined;
@@ -237,7 +309,7 @@ function validateSiteMetaMap(rawValue, errors) {
     errors.push(issue(
       'INVALID_SITE_META',
       'theme.json',
-      "theme.json field 'siteMeta' must not be empty",
+      "theme.json field 'site_meta' must not be empty",
       'error'
     ));
   }
@@ -246,7 +318,7 @@ function validateSiteMetaMap(rawValue, errors) {
     errors.push(issue(
       'INVALID_SITE_META',
       'theme.json',
-      `theme.json field 'siteMeta' must contain at most ${SITE_META_COUNT_MAX} keys`,
+      `theme.json field 'site_meta' must contain at most ${SITE_META_COUNT_MAX} keys`,
       'error'
     ));
   }
@@ -257,8 +329,8 @@ function validateSiteMetaMap(rawValue, errors) {
     if (!SITE_META_KEY_REGEX.test(metaKey) || metaKey.length > SITE_META_KEY_MAX_LENGTH) {
       errors.push(issue(
         'INVALID_SITE_META_KEY',
-        `theme.json.siteMeta.${metaKey}`,
-        `siteMeta key '${metaKey}' must start with a lowercase letter and use lowercase letters, digits, underscores, or internal hyphens only`,
+        `theme.json.site_meta.${metaKey}`,
+        `site_meta key '${metaKey}' must start with a lowercase letter and use lowercase letters, digits, underscores, or internal hyphens only`,
         'error'
       ));
       continue;
@@ -267,8 +339,8 @@ function validateSiteMetaMap(rawValue, errors) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       errors.push(issue(
         'INVALID_SITE_META_FIELD',
-        `theme.json.siteMeta.${metaKey}`,
-        `siteMeta key '${metaKey}' must be an object`,
+        `theme.json.site_meta.${metaKey}`,
+        `site_meta key '${metaKey}' must be an object`,
         'error'
       ));
       continue;
@@ -279,8 +351,8 @@ function validateSiteMetaMap(rawValue, errors) {
       if (!allowedKeys.has(key)) {
         errors.push(issue(
           'INVALID_SITE_META_PROPERTY',
-          `theme.json.siteMeta.${metaKey}.${key}`,
-          `Unknown siteMeta property '${key}' in key '${metaKey}'`,
+          `theme.json.site_meta.${metaKey}.${key}`,
+          `Unknown site_meta property '${key}' in key '${metaKey}'`,
           'error'
         ));
       }
@@ -289,15 +361,15 @@ function validateSiteMetaMap(rawValue, errors) {
     if (typeof value.title !== 'string' || value.title.trim() === '') {
       errors.push(issue(
         'INVALID_SITE_META_TITLE',
-        `theme.json.siteMeta.${metaKey}.title`,
-        `siteMeta key '${metaKey}' must define a non-empty 'title'`,
+        `theme.json.site_meta.${metaKey}.title`,
+        `site_meta key '${metaKey}' must define a non-empty 'title'`,
         'error'
       ));
     } else if (value.title.trim().length > MENU_SLOT_TITLE_MAX_LENGTH) {
       errors.push(issue(
         'INVALID_SITE_META_TITLE',
-        `theme.json.siteMeta.${metaKey}.title`,
-        `siteMeta key '${metaKey}' title must be at most ${MENU_SLOT_TITLE_MAX_LENGTH} characters`,
+        `theme.json.site_meta.${metaKey}.title`,
+        `site_meta key '${metaKey}' title must be at most ${MENU_SLOT_TITLE_MAX_LENGTH} characters`,
         'error'
       ));
     }
@@ -305,8 +377,8 @@ function validateSiteMetaMap(rawValue, errors) {
     if (value.description !== undefined && (typeof value.description !== 'string' || value.description.trim().length > MENU_SLOT_DESCRIPTION_MAX_LENGTH)) {
       errors.push(issue(
         'INVALID_SITE_META_DESCRIPTION',
-        `theme.json.siteMeta.${metaKey}.description`,
-        `siteMeta key '${metaKey}' description must be a string at most ${MENU_SLOT_DESCRIPTION_MAX_LENGTH} characters`,
+        `theme.json.site_meta.${metaKey}.description`,
+        `site_meta key '${metaKey}' description must be a string at most ${MENU_SLOT_DESCRIPTION_MAX_LENGTH} characters`,
         'error'
       ));
     }
@@ -314,8 +386,8 @@ function validateSiteMetaMap(rawValue, errors) {
     if (value.type !== undefined && !SITE_META_TYPES.has(value.type)) {
       errors.push(issue(
         'INVALID_SITE_META_TYPE',
-        `theme.json.siteMeta.${metaKey}.type`,
-        `siteMeta key '${metaKey}' type must be one of: string, number, boolean`,
+        `theme.json.site_meta.${metaKey}.type`,
+        `site_meta key '${metaKey}' type must be one of: string, number, boolean`,
         'error'
       ));
     }
@@ -325,15 +397,15 @@ function validateSiteMetaMap(rawValue, errors) {
       if (value.default !== null && defaultType !== 'string' && defaultType !== 'number' && defaultType !== 'boolean') {
         errors.push(issue(
           'INVALID_SITE_META_DEFAULT',
-          `theme.json.siteMeta.${metaKey}.default`,
-          `siteMeta key '${metaKey}' default must be a string, number, boolean, or null`,
+          `theme.json.site_meta.${metaKey}.default`,
+          `site_meta key '${metaKey}' default must be a string, number, boolean, or null`,
           'error'
         ));
       } else if (typeof value.type === 'string' && SITE_META_TYPES.has(value.type) && value.default !== null && defaultType !== value.type) {
         errors.push(issue(
           'INVALID_SITE_META_DEFAULT',
-          `theme.json.siteMeta.${metaKey}.default`,
-          `siteMeta key '${metaKey}' default must match its declared type`,
+          `theme.json.site_meta.${metaKey}.default`,
+          `site_meta key '${metaKey}' default must match its declared type`,
           'error'
         ));
       }
@@ -547,11 +619,11 @@ function validateManifest(themeJson) {
     errors.push(issue('INVALID_RUNTIME_VERSION', 'theme.json', `theme.json field 'runtime' must be one of: ${SUPPORTED_RUNTIMES.join(', ')}`, 'error'));
   }
 
-  if (typeof themeJson.license === 'string' && !LICENSES.has(themeJson.license.trim())) {
+  if (typeof themeJson.license === 'string' && !isAllowedLicense(themeJson.license.trim())) {
     errors.push(issue(
       'INVALID_LICENSE',
       'theme.json',
-      "theme.json field 'license' must be one of: MIT, Apache-2.0, BSD-3-Clause, GPL-3.0-only, GPL-3.0-or-later",
+      "theme.json field 'license' must be one of: MIT, Apache-2.0, BSD-3-Clause, GPL-3.0-only, GPL-3.0-or-later, or a LicenseRef-* identifier",
       'error'
     ));
   }
@@ -621,12 +693,17 @@ function validateManifest(themeJson) {
     }
   }
 
+  const links = validateThemeLinks(themeJson.links, errors);
+  if (links) {
+    manifest.links = links;
+  }
+
   const features = validateFeatureFlags(themeJson.features, errors);
   if (features) {
     manifest.features = features;
   }
 
-  const menuSlots = validateHelperMetadataMap(themeJson.menuSlots, 'menuSlots', {
+  const menu_slots = validateHelperMetadataMap(themeJson.menu_slots, 'menu_slots', {
     itemLabel: 'Menu slot',
     propertyLabel: 'menu slot property',
     collectionLabel: 'slots',
@@ -637,11 +714,11 @@ function validateManifest(themeJson) {
     invalidTitleCode: 'INVALID_MENU_SLOT_TITLE',
     invalidDescriptionCode: 'INVALID_MENU_SLOT_DESCRIPTION',
   }, errors);
-  if (menuSlots) {
-    manifest.menuSlots = menuSlots;
+  if (menu_slots) {
+    manifest.menu_slots = menu_slots;
   }
 
-  const widgetAreas = validateHelperMetadataMap(themeJson.widgetAreas, 'widgetAreas', {
+  const widget_areas = validateHelperMetadataMap(themeJson.widget_areas, 'widget_areas', {
     itemLabel: 'Widget area',
     propertyLabel: 'widget area property',
     collectionLabel: 'areas',
@@ -652,16 +729,16 @@ function validateManifest(themeJson) {
     invalidTitleCode: 'INVALID_WIDGET_AREA_TITLE',
     invalidDescriptionCode: 'INVALID_WIDGET_AREA_DESCRIPTION',
   }, errors);
-  if (widgetAreas) {
-    manifest.widgetAreas = widgetAreas;
+  if (widget_areas) {
+    manifest.widget_areas = widget_areas;
   }
 
-  const siteMeta = validateSiteMetaMap(themeJson.siteMeta, errors);
-  if (siteMeta) {
-    manifest.siteMeta = siteMeta;
+  const site_meta = validateSiteMetaMap(themeJson.site_meta, errors);
+  if (site_meta) {
+    manifest.site_meta = site_meta;
   }
 
-  const collectionSlots = validateHelperMetadataMap(themeJson.collectionSlots, 'collectionSlots', {
+  const collection_slots = validateHelperMetadataMap(themeJson.collection_slots, 'collection_slots', {
     itemLabel: 'Collection slot',
     propertyLabel: 'collection slot property',
     collectionLabel: 'slots',
@@ -672,8 +749,8 @@ function validateManifest(themeJson) {
     invalidTitleCode: 'INVALID_COLLECTION_SLOT_TITLE',
     invalidDescriptionCode: 'INVALID_COLLECTION_SLOT_DESCRIPTION',
   }, errors);
-  if (collectionSlots) {
-    manifest.collectionSlots = collectionSlots;
+  if (collection_slots) {
+    manifest.collection_slots = collection_slots;
   }
 
   return { errors, manifest: errors.length > 0 ? undefined : manifest };

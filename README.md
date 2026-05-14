@@ -12,7 +12,7 @@ This package is the single source of truth for runtime theme validation used by:
 - `backend_api_v2`
 - `themes.zeropress.org-api`
 
-It implements the current runtime v0.5 validation rules defined in [ZeroPress Theme Runtime Spec v0.5](https://zeropress.dev/spec/theme-runtime-v0.5.html).
+It implements the current runtime v0.6 validation rules defined in [ZeroPress Theme Runtime Spec v0.6](https://zeropress.dev/spec/theme-runtime-v0.6.html).
 
 ---
 
@@ -39,7 +39,7 @@ import {
 Schema exports:
 
 ```js
-import runtimeSchemaUrl from '@zeropress/theme-validator/theme.v0.5.runtime.schema.json';
+import runtimeSchemaUrl from '@zeropress/theme-validator/theme.v0.6.runtime.schema.json';
 ```
 
 Published schema files are shipped from the package `schemas/` directory, and package subpath exports are versioned.
@@ -113,26 +113,31 @@ const result = await validateThemeFiles(files, {
     namespace: 'my-studio',
     slug: 'my-theme',
     version: '1.0.0',
-    license: 'MIT',
-    runtime: '0.5',
+    license: 'LicenseRef-Commercial',
+    runtime: '0.6',
     description: 'Optional',
-    menuSlots: {
+    links: {
+      homepage: 'https://example.com/theme',
+      support: 'mailto:support@example.com',
+      license: 'https://example.com/theme/license',
+    },
+    menu_slots: {
       primary: {
         title: 'Primary Menu',
       },
     },
-    widgetAreas: {
+    widget_areas: {
       sidebar: {
         title: 'Sidebar Widgets',
       },
     },
-    siteMeta: {
+    site_meta: {
       issue: {
         title: 'Issue',
         type: 'string',
       },
     },
-    collectionSlots: {
+    collection_slots: {
       'cover-story': {
         title: 'Cover Story',
       },
@@ -166,15 +171,17 @@ Issue objects use this shape:
 - Missing or invalid `theme.json.namespace`
 - Missing or invalid `theme.json.slug`
 - Missing or invalid `theme.json.license`
+- Invalid `LicenseRef-*` theme license identifier
+- Invalid `theme.json.links`
 - Missing or invalid `theme.json.runtime`
 - `theme.json.name` longer than 80 characters
 - `theme.json.author` longer than 80 characters
 - `theme.json.description` longer than 280 characters
 - Unknown root fields in `theme.json`
-- Invalid `theme.json.menuSlots`
-- Invalid `theme.json.widgetAreas`
-- Invalid `theme.json.siteMeta`
-- Invalid `theme.json.collectionSlots`
+- Invalid `theme.json.menu_slots`
+- Invalid `theme.json.widget_areas`
+- Invalid `theme.json.site_meta`
+- Invalid `theme.json.collection_slots`
 - Invalid menu slot ids
 - Invalid menu slot definitions or unknown slot properties
 - Invalid widget area ids
@@ -203,7 +210,7 @@ Issue objects use this shape:
 
 - [@zeropress/theme](https://www.npmjs.com/package/@zeropress/theme)
 - [create-zeropress-theme](https://www.npmjs.com/package/create-zeropress-theme)
-- [ZeroPress Theme Runtime Spec v0.5](https://zeropress.dev/spec/theme-runtime-v0.5.html)
+- [ZeroPress Theme Runtime Spec v0.6](https://zeropress.dev/spec/theme-runtime-v0.6.html)
 
 ---
 
