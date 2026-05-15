@@ -498,11 +498,16 @@ export async function validateThemeFiles(fileMap, options = {}) {
       manifest = manifestResult.manifest;
       errors.push(...manifestResult.errors);
     } catch (error) {
+      const rawThemeJson = getText(files.get('theme.json'));
       errors.push(issue(
         'INVALID_THEME_JSON',
         'theme.json',
         `Invalid theme.json: ${error instanceof Error ? error.message : String(error)}`,
-        'error'
+        'error',
+        {
+          ...locationForJsonParseError(error, rawThemeJson),
+          category: 'json_syntax',
+        },
       ));
     }
   }
@@ -765,8 +770,19 @@ function validateTemplateSyntax(templatePath, content, context) {
     if (contentSlotMatches.length !== 1) {
       errors.push(issue('INVALID_LAYOUT_SLOT', 'layout.html', 'layout.html must contain exactly one {{slot:content}}', 'error'));
     }
-    if (/<script\b/i.test(content)) {
-      errors.push(issue('LAYOUT_SCRIPT_NOT_ALLOWED', 'layout.html', 'layout.html must not contain <script> tags', 'error'));
+    const scriptMatch = /<script\b/i.exec(content);
+    if (scriptMatch) {
+      errors.push(issue(
+        'LAYOUT_SCRIPT_NOT_ALLOWED',
+        'layout.html',
+        'layout.html must not contain <script> tags',
+        'error',
+        {
+          ...locationForIndex(content, scriptMatch.index),
+          category: 'theme_validation',
+          hint: 'Move shared scripts into a partial such as {{partial:content-enhancements}}, then include that partial from layout.html.',
+        },
+      ));
     }
   }
 
@@ -1258,11 +1274,65 @@ function isPathInsideRoot(candidate, root) {
   return candidate === root || candidate.startsWith(`${root}/`);
 }
 
-function issue(code, filePath, message, severity) {
-  return {
+function issue(code, filePath, message, severity, details = {}) {
+  const nextIssue = {
     code,
     path: filePath,
     message,
     severity,
   };
+
+  if (Number.isInteger(details.line) && details.line > 0) {
+    nextIssue.line = details.line;
+  }
+  if (Number.isInteger(details.column) && details.column > 0) {
+    nextIssue.column = details.column;
+  }
+  if (typeof details.hint === 'string' && details.hint.trim()) {
+    nextIssue.hint = details.hint;
+  }
+  if (typeof details.category === 'string' && details.category.trim()) {
+    nextIssue.category = details.category;
+  }
+
+  return nextIssue;
+}
+
+function locationForJsonParseError(error, source) {
+  const message = error instanceof Error ? error.message : String(error);
+  const lineColumnMatch = /\bline\s+(\d+)\s+column\s+(\d+)/i.exec(message);
+  if (lineColumnMatch) {
+    return {
+      line: Number(lineColumnMatch[1]),
+      column: Number(lineColumnMatch[2]),
+    };
+  }
+
+  const positionMatch = /\bposition\s+(\d+)/i.exec(message);
+  if (positionMatch) {
+    return locationForIndex(source, Number(positionMatch[1]));
+  }
+
+  if (/Unexpected end of JSON input/i.test(message)) {
+    return locationForIndex(source, source.length);
+  }
+
+  return {};
+}
+
+function locationForIndex(source, index) {
+  const boundedIndex = Math.max(0, Math.min(Number.isInteger(index) ? index : 0, source.length));
+  let line = 1;
+  let column = 1;
+
+  for (let cursor = 0; cursor < boundedIndex; cursor += 1) {
+    if (source[cursor] === '\n') {
+      line += 1;
+      column = 1;
+    } else {
+      column += 1;
+    }
+  }
+
+  return { line, column };
 }

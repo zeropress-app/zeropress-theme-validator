@@ -3,6 +3,10 @@ export interface ValidationIssue {
   path: string;
   message: string;
   severity: 'error' | 'warning';
+  line?: number;
+  column?: number;
+  hint?: string;
+  category?: string;
 }
 
 export interface ThemeManifest {

@@ -930,10 +930,20 @@ test('validateThemeFiles rejects invalid site_meta and collection_slots metadata
 
 test('validateThemeFiles reports script tags in layout.html', async () => {
   const files = createValidThemeFiles();
-  files['layout.html'] = '<main>{{slot:content}}</main><script>alert(1)</script>';
+  files['layout.html'] = [
+    '<html>',
+    '<body>',
+    '<main>{{slot:content}}</main><script>alert(1)</script>',
+    '</body>',
+    '</html>',
+  ].join('\n');
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);
-  assert.equal(result.errors.some((issue) => issue.code === 'LAYOUT_SCRIPT_NOT_ALLOWED'), true);
+  const issue = result.errors.find((entry) => entry.code === 'LAYOUT_SCRIPT_NOT_ALLOWED');
+  assert.equal(issue?.path, 'layout.html');
+  assert.equal(issue?.line, 3);
+  assert.equal(issue?.category, 'theme_validation');
+  assert.match(issue?.hint || '', /partial:content-enhancements/);
 });
 
 test('validateThemeFiles warns on missing optional templates', async () => {
