@@ -285,7 +285,10 @@ test('validateThemeFiles rejects unsupported runtime versions', async () => {
   });
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);
-  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_RUNTIME_VERSION'), true);
+  const issue = result.errors.find((entry) => entry.code === 'INVALID_RUNTIME_VERSION');
+  assert.equal(Boolean(issue), true);
+  assert.equal(issue?.category, 'theme_manifest');
+  assert.match(issue?.hint || '', /"runtime": "0\.6"/);
 });
 
 test('validateThemeFiles accepts runtime 0.6 manifests', async () => {
@@ -328,13 +331,37 @@ test('validateThemeFiles rejects unknown theme features', async () => {
     runtime: '0.6',
     features: {
       comments: true,
-      contact: true,
+      postIndex: true,
     },
   });
 
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);
-  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_THEME_FEATURE'), true);
+  const issue = result.errors.find((entry) => entry.code === 'INVALID_THEME_FEATURE');
+  assert.equal(Boolean(issue), true);
+  assert.match(issue?.hint || '', /post_index/);
+});
+
+test('validateThemeFiles hints v0.6 snake_case root manifest fields', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_6);
+  files['theme.json'] = JSON.stringify({
+    name: 'Test Theme',
+    namespace: 'test-studio',
+    slug: 'test-theme',
+    version: '1.0.0',
+    license: 'MIT',
+    runtime: '0.6',
+    menuSlots: {},
+    widgetAreas: {},
+  });
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, false);
+  const menuIssue = result.errors.find((issue) => issue.path === 'theme.json.menuSlots');
+  const widgetIssue = result.errors.find((issue) => issue.path === 'theme.json.widgetAreas');
+  assert.equal(menuIssue?.category, 'theme_manifest');
+  assert.match(menuIssue?.hint || '', /menu_slots/);
+  assert.match(widgetIssue?.hint || '', /widget_areas/);
 });
 
 test('validateThemeFiles rejects non-boolean theme feature values', async () => {
@@ -944,6 +971,8 @@ test('validateThemeFiles reports script tags in layout.html', async () => {
   assert.equal(issue?.line, 3);
   assert.equal(issue?.category, 'theme_validation');
   assert.match(issue?.hint || '', /partial:content-enhancements/);
+  assert.equal(issue?.snippet?.line, '<main>{{slot:content}}</main><script>alert(1)</script>');
+  assert.match(issue?.snippet?.pointer || '', /\^/);
 });
 
 test('validateThemeFiles warns on missing optional templates', async () => {

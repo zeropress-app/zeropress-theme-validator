@@ -86,7 +86,11 @@ function validateFeatureFlags(rawValue, errors) {
         'INVALID_THEME_FEATURE',
         `theme.json.features.${featureName}`,
         `Unknown theme feature '${featureName}'`,
-        'error'
+        'error',
+        {
+          category: 'theme_manifest',
+          hint: themeFeatureHint(featureName),
+        },
       ));
       continue;
     }
@@ -105,6 +109,24 @@ function validateFeatureFlags(rawValue, errors) {
   }
 
   return Object.keys(normalizedFeatures).length > 0 ? normalizedFeatures : undefined;
+}
+
+function themeFeatureHint(featureName) {
+  const hints = {
+    postIndex: "ZeroPress runtime v0.6 uses snake_case keys. Use 'post_index' instead of 'postIndex'.",
+  };
+  return hints[featureName] || '';
+}
+
+function themeManifestFieldHint(fieldName) {
+  const hints = {
+    menuSlots: "ZeroPress runtime v0.6 uses snake_case keys. Use 'menu_slots' instead of 'menuSlots'.",
+    widgetAreas: "ZeroPress runtime v0.6 uses snake_case keys. Use 'widget_areas' instead of 'widgetAreas'.",
+    siteMeta: "ZeroPress runtime v0.6 uses snake_case keys. Use 'site_meta' instead of 'siteMeta'.",
+    collectionSlots: "ZeroPress runtime v0.6 uses snake_case keys. Use 'collection_slots' instead of 'collectionSlots'.",
+    settings: 'theme.json.settings was removed in runtime v0.6. Use preview-data site.meta and theme.json site_meta hints for site-level values.',
+  };
+  return hints[fieldName] || '';
 }
 
 function isAllowedLicense(value) {
@@ -585,7 +607,11 @@ function validateManifest(themeJson) {
         'UNKNOWN_THEME_MANIFEST_FIELD',
         `theme.json.${key}`,
         `Unknown theme.json field '${key}'`,
-        'error'
+        'error',
+        {
+          category: 'theme_manifest',
+          hint: themeManifestFieldHint(key),
+        },
       ));
     }
   }
@@ -621,7 +647,16 @@ function validateManifest(themeJson) {
   }
 
   if (typeof themeJson.runtime === 'string' && !SUPPORTED_RUNTIME_SET.has(themeJson.runtime.trim())) {
-    errors.push(issue('INVALID_RUNTIME_VERSION', 'theme.json', `theme.json field 'runtime' must be one of: ${SUPPORTED_RUNTIMES.join(', ')}`, 'error'));
+    errors.push(issue(
+      'INVALID_RUNTIME_VERSION',
+      'theme.json',
+      `theme.json field 'runtime' must be one of: ${SUPPORTED_RUNTIMES.join(', ')}`,
+      'error',
+      {
+        category: 'theme_manifest',
+        hint: `Update theme.json:\n\n"runtime": "${THEME_RUNTIME_V0_6}"`,
+      },
+    ));
   }
 
   if (typeof themeJson.license === 'string' && !isAllowedLicense(themeJson.license.trim())) {
@@ -781,6 +816,7 @@ function validateTemplateSyntax(templatePath, content, context) {
           ...locationForIndex(content, scriptMatch.index),
           category: 'theme_validation',
           hint: 'Move shared scripts into a partial such as {{partial:content-enhancements}}, then include that partial from layout.html.',
+          snippet: snippetForIndex(content, scriptMatch.index),
         },
       ));
     }
@@ -1294,6 +1330,17 @@ function issue(code, filePath, message, severity, details = {}) {
   if (typeof details.category === 'string' && details.category.trim()) {
     nextIssue.category = details.category;
   }
+  if (
+    details.snippet
+    && typeof details.snippet === 'object'
+    && typeof details.snippet.line === 'string'
+    && typeof details.snippet.pointer === 'string'
+  ) {
+    nextIssue.snippet = {
+      line: details.snippet.line,
+      pointer: details.snippet.pointer,
+    };
+  }
 
   return nextIssue;
 }
@@ -1335,4 +1382,12 @@ function locationForIndex(source, index) {
   }
 
   return { line, column };
+}
+
+function snippetForIndex(source, index) {
+  const location = locationForIndex(source, index);
+  const lines = String(source).split(/\r?\n/);
+  const line = lines[location.line - 1] || '';
+  const pointer = `${' '.repeat(Math.max(location.column - 1, 0))}^`;
+  return { line, pointer };
 }

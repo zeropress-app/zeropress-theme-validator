@@ -7,6 +7,10 @@ export interface ValidationIssue {
   column?: number;
   hint?: string;
   category?: string;
+  snippet?: {
+    line: string;
+    pointer: string;
+  };
 }
 
 export interface ThemeManifest {
