@@ -20,6 +20,30 @@ const COMPARISON_TAG_OPERATORS = {
   if_starts_with: 'starts_with',
   else_if_starts_with: 'starts_with',
 };
+const PARTIAL_ARG_ROOT_PATHS = new Set([
+  'archive',
+  'author',
+  'category',
+  'collection',
+  'collections',
+  'currentUrl',
+  'language',
+  'menu',
+  'menus',
+  'meta',
+  'page',
+  'pagination',
+  'partial',
+  'post',
+  'posts',
+  'route',
+  'site',
+  'tag',
+  'taxonomies',
+  'taxonomy',
+  'widget',
+  'widgets',
+]);
 const PARTIAL_ARG_KEY_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const LICENSE_REF_REGEX = /^LicenseRef-[A-Za-z0-9][A-Za-z0-9.-]*$/;
@@ -891,7 +915,9 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
 
     if (token.startsWith('partial:')) {
       try {
-        parsePartialReferenceToken(token);
+        parsePartialReferenceToken(token, {
+          allowedSingleSegmentPaths: getPartialArgScope(stack),
+        });
       } catch (error) {
         errors.push(issue(
           'INVALID_PARTIAL_REFERENCE',
@@ -1014,7 +1040,7 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
     if (forMatch) {
       const path = forMatch[2];
       validateReservedPathUsage(path, templatePath, errors, stack, { isPartialFile });
-      stack.push({ tag: 'for', hasElse: false });
+      stack.push({ tag: 'for', itemName: forMatch[1], hasElse: false });
       continue;
     }
 
@@ -1268,7 +1294,7 @@ function getReferencedPartialNames(content) {
 
   while ((match = PARTIAL_TAG_REGEX.exec(content)) !== null) {
     try {
-      const { name } = parsePartialReferenceToken(match[1]);
+      const { name } = parsePartialReferenceToken(match[1], { validateArgs: false });
       matches.add(name);
     } catch {
       // Template syntax validation reports malformed partial tags.
@@ -1279,7 +1305,7 @@ function getReferencedPartialNames(content) {
   return matches;
 }
 
-function parsePartialReferenceToken(token) {
+function parsePartialReferenceToken(token, options = {}) {
   const source = String(token || '').trim();
   if (!source.startsWith('partial:')) {
     throw new Error('Partial token must start with partial:');
@@ -1297,12 +1323,14 @@ function parsePartialReferenceToken(token) {
   }
 
   const argsSource = expression.slice(name.length).trim();
-  parsePartialArgs(argsSource);
+  if (options.validateArgs !== false) {
+    parsePartialArgs(argsSource, options);
+  }
 
   return { name };
 }
 
-function parsePartialArgs(source) {
+function parsePartialArgs(source, options = {}) {
   if (!source) {
     return {};
   }
@@ -1364,7 +1392,8 @@ function parsePartialArgs(source) {
         throw new Error(`Unclosed string literal for partial argument '${key}'`);
       }
 
-      args[key] = JSON.parse(source.slice(index, cursor + 1));
+      JSON.parse(source.slice(index, cursor + 1));
+      args[key] = true;
       index = cursor + 1;
       continue;
     }
@@ -1376,8 +1405,29 @@ function parsePartialArgs(source) {
     }
 
     if (source.startsWith('false', index) && isValueBoundary(source, index + 5)) {
-      args[key] = false;
+      args[key] = true;
       index += 5;
+      continue;
+    }
+
+    if (source.startsWith('null', index) && isValueBoundary(source, index + 4)) {
+      args[key] = true;
+      index += 4;
+      continue;
+    }
+
+    const valueMatch = /^\S+/.exec(source.slice(index));
+    if (!valueMatch) {
+      throw new Error(`Missing partial argument value for '${key}'`);
+    }
+
+    const valueToken = valueMatch[0];
+    if (
+      NUMBER_LITERAL_REGEX.test(valueToken)
+      || (TEMPLATE_PATH_REGEX.test(valueToken) && isAllowedPartialArgPath(valueToken, options))
+    ) {
+      args[key] = true;
+      index += valueToken.length;
       continue;
     }
 
@@ -1389,6 +1439,26 @@ function parsePartialArgs(source) {
 
 function isValueBoundary(source, index) {
   return index >= source.length || /\s/.test(source[index]);
+}
+
+function isAllowedPartialArgPath(valueToken, options) {
+  if (valueToken.includes('.')) {
+    return true;
+  }
+
+  const allowedSingleSegmentPaths = options?.allowedSingleSegmentPaths;
+  return allowedSingleSegmentPaths instanceof Set && allowedSingleSegmentPaths.has(valueToken);
+}
+
+function getPartialArgScope(stack) {
+  const scope = new Set(PARTIAL_ARG_ROOT_PATHS);
+  for (const entry of stack) {
+    if (entry.tag === 'for' && typeof entry.itemName === 'string') {
+      scope.add(entry.itemName);
+      scope.add('loop');
+    }
+  }
+  return scope;
 }
 
 function validatePathSafety(pathEntries, errors) {

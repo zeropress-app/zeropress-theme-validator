@@ -609,23 +609,34 @@ test('validateThemeFiles rejects loop metadata outside for blocks', async () => 
   assert.equal(result.errors.some((issue) => issue.code === 'INVALID_LOOP_REFERENCE'), true);
 });
 
-test('validateThemeFiles accepts partial arguments with string and boolean literals', async () => {
+test('validateThemeFiles accepts partial arguments with literals and path aliases', async () => {
   const files = createValidThemeFiles(THEME_RUNTIME_V0_6);
-  files['index.html'] = '{{partial:sidebar/card variant="compact" show_excerpt=true}}';
-  files['partials/sidebar/card.html'] = '{{#if partial.show_excerpt}}<p>{{partial.variant}}</p>{{/if}}';
+  files['index.html'] = '{{#for item in collections.work.items}}{{partial:sidebar/card project=item media=post.featured_media fallback=post.featured_image variant="compact" show_excerpt=true limit=3 empty=null}}{{/for}}';
+  files['partials/sidebar/card.html'] = '{{#if partial.show_excerpt}}<p>{{partial.project.title}}{{partial.variant}}</p>{{/if}}';
 
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, true);
 });
 
-test('validateThemeFiles rejects invalid partial arguments', async () => {
-  const files = createValidThemeFiles(THEME_RUNTIME_V0_6);
-  files['index.html'] = '{{partial:sidebar/card variant="compact" variant=false count=2}}';
-  files['partials/sidebar/card.html'] = '<p>Card</p>';
+test('validateThemeFiles rejects invalid partial arguments', async (t) => {
+  const cases = [
+    '{{partial:sidebar/card variant="compact" variant=false}}',
+    '{{partial:sidebar/card variant=compact}}',
+    '{{partial:sidebar/card item=posts.items[0]}}',
+    '{{partial:sidebar/card visible=post&&page}}',
+  ];
 
-  const result = await validateThemeFiles(files);
-  assert.equal(result.ok, false);
-  assert.equal(result.errors.some((issue) => issue.code === 'INVALID_PARTIAL_REFERENCE'), true);
+  for (const template of cases) {
+    await t.test(template, async () => {
+      const files = createValidThemeFiles(THEME_RUNTIME_V0_6);
+      files['index.html'] = template;
+      files['partials/sidebar/card.html'] = '<p>Card</p>';
+
+      const result = await validateThemeFiles(files);
+      assert.equal(result.ok, false);
+      assert.equal(result.errors.some((issue) => issue.code === 'INVALID_PARTIAL_REFERENCE'), true);
+    });
+  }
 });
 
 test('validateThemeFiles accepts else_if_eq chains and rejects invalid ordering', async () => {
