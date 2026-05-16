@@ -404,6 +404,39 @@ test('validateThemeFiles accepts supported v0.6 control-flow and comment syntax'
   assert.equal(result.ok, true);
 });
 
+test('validateThemeFiles accepts v0.6 comparison helpers', async () => {
+  const files = createValidThemeFiles(THEME_RUNTIME_V0_6);
+  files['index.html'] = `
+{{#for item in items}}{{#if_eq loop.index 4}}number{{/if_eq}}{{#if_neq loop.last true}},{{/if_neq}}{{/for}}
+{{#if_eq site.footer.attribution true}}footer{{/if_eq}}
+{{#if_eq route.url item.url}}active{{/if_eq}}
+{{#if_in route.type "post" "page" "front_page" 4 "tag"}}content{{/if_in}}
+{{#if_starts_with route.url item.url}}active{{/if_starts_with}}
+{{#if_neq route.type "post"}}not-post{{#else_if_neq route.type "page"}}not-page{{/if_neq}}
+{{#if_in route.type "tag"}}tag{{#else_if_in route.type "post" "page"}}content{{/if_in}}
+{{#if_starts_with route.url "/blog/"}}blog{{#else_if_starts_with route.url "/docs/"}}docs{{/if_starts_with}}
+`;
+
+  const result = await validateThemeFiles(files);
+  assert.equal(result.ok, true);
+});
+
+test('validateThemeFiles rejects malformed v0.6 comparison helpers', async () => {
+  for (const template of [
+    '{{#if_eq site.footer.attribution}}bad{{/if_eq}}',
+    '{{#if_in route.type}}bad{{/if_in}}',
+    '{{#if_eq route.type post page}}bad{{/if_eq}}',
+    '{{#if_eq route.type "post"}}bad{{/if_neq}}',
+    '{{#if_eq route.type "post"}}ok{{#else_if_in route.type "page"}}bad{{/if_eq}}',
+  ]) {
+    const files = createValidThemeFiles(THEME_RUNTIME_V0_6);
+    files['index.html'] = template;
+
+    const result = await validateThemeFiles(files);
+    assert.equal(result.ok, false, template);
+  }
+});
+
 test('validateThemeFiles accepts internal hyphens in template path segments', async () => {
   const files = createValidThemeFiles(THEME_RUNTIME_V0_6);
   files['theme.json'] = JSON.stringify({
@@ -512,7 +545,7 @@ test('validateThemeFiles rejects v0.6 duplicate else blocks', async () => {
 
 test('validateThemeFiles rejects unsupported v0.6 tags', async () => {
   const files = createValidThemeFiles(THEME_RUNTIME_V0_6);
-  files['index.html'] = '{{#if_neq widget.type "profile"}}x{{/if_neq}}';
+  files['index.html'] = '{{#if_gt widget.count 2}}x{{/if_gt}}';
 
   const result = await validateThemeFiles(files);
   assert.equal(result.ok, false);

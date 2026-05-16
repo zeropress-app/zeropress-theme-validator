@@ -7,7 +7,19 @@ const PARTIAL_TAG_REGEX = /\{\{(partial:[^}]+)\}\}/g;
 const TEMPLATE_PATH_SEGMENT_SOURCE = '[a-zA-Z_][a-zA-Z0-9_]*(?:-[a-zA-Z0-9_]+)*';
 const TEMPLATE_PATH_REGEX = new RegExp(`^${TEMPLATE_PATH_SEGMENT_SOURCE}(?:\\.${TEMPLATE_PATH_SEGMENT_SOURCE})*$`);
 const FOR_TAG_REGEX = new RegExp(`^#for ([a-zA-Z_][a-zA-Z0-9_]*) in (${TEMPLATE_PATH_SEGMENT_SOURCE}(?:\\.${TEMPLATE_PATH_SEGMENT_SOURCE})*)$`);
-const IF_EQ_EXPRESSION_REGEX = new RegExp(`^(${TEMPLATE_PATH_SEGMENT_SOURCE}(?:\\.${TEMPLATE_PATH_SEGMENT_SOURCE})*)\\s+("(?:[^"\\\\]|\\\\.)*")$`);
+const NUMBER_LITERAL_REGEX = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/;
+const COMPARISON_BLOCK_TAGS = new Set(['if_eq', 'if_neq', 'if_in', 'if_starts_with']);
+const COMPARISON_ELSE_IF_TAGS = new Set(['else_if_eq', 'else_if_neq', 'else_if_in', 'else_if_starts_with']);
+const COMPARISON_TAG_OPERATORS = {
+  if_eq: 'eq',
+  else_if_eq: 'eq',
+  if_neq: 'neq',
+  else_if_neq: 'neq',
+  if_in: 'in',
+  else_if_in: 'in',
+  if_starts_with: 'starts_with',
+  else_if_starts_with: 'starts_with',
+};
 const PARTIAL_ARG_KEY_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const LICENSE_REF_REGEX = /^LicenseRef-[A-Za-z0-9][A-Za-z0-9.-]*$/;
@@ -906,7 +918,7 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
 
     if (token === '#else') {
       const current = stack[stack.length - 1];
-      if (!current || (current.tag !== 'if' && current.tag !== 'if_eq')) {
+      if (!current || (current.tag !== 'if' && !COMPARISON_BLOCK_TAGS.has(current.tag))) {
         errors.push(issue('UNEXPECTED_TEMPLATE_ELSE', templatePath, `Unexpected {{#else}} in ${templatePath}`, 'error'));
         return;
       }
@@ -918,9 +930,11 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
       continue;
     }
 
-    if (token.startsWith('#else_if_eq ')) {
+    const comparisonElseIfTag = getComparisonElseIfTag(token);
+    if (comparisonElseIfTag) {
       const current = stack[stack.length - 1];
-      if (!current || current.tag !== 'if_eq') {
+      const expectedBlockTag = comparisonElseIfTag.replace(/^else_/, '');
+      if (!current || current.tag !== expectedBlockTag) {
         errors.push(issue('UNEXPECTED_TEMPLATE_ELSE_IF', templatePath, `Unexpected {{${token}}} in ${templatePath}`, 'error'));
         return;
       }
@@ -928,13 +942,13 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
         errors.push(issue('INVALID_TEMPLATE_BRANCH_ORDER', templatePath, `{{${token}}} cannot appear after {{#else}} in ${templatePath}`, 'error'));
         return;
       }
-      const expression = token.slice('#else_if_eq '.length).trim();
-      const parsed = parseIfEqExpression(expression);
+      const expression = token.slice(`#${comparisonElseIfTag} `.length).trim();
+      const parsed = parseComparisonExpression(expression, comparisonElseIfTag);
       if (!parsed) {
         errors.push(issue('UNSUPPORTED_TEMPLATE_TAG', templatePath, `Unsupported template tag '{{${token}}}' in ${templatePath}`, 'error'));
         return;
       }
-      validateReservedPathUsage(parsed.path, templatePath, errors, stack, { isPartialFile });
+      validateComparisonPathUsage(parsed, templatePath, errors, stack, { isPartialFile });
       continue;
     }
 
@@ -959,7 +973,7 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
 
     if (token.startsWith('/')) {
       const closingTag = token.slice(1).trim();
-      if (!['if', 'if_eq', 'for'].includes(closingTag)) {
+      if (!['if', 'for', ...COMPARISON_BLOCK_TAGS].includes(closingTag)) {
         errors.push(issue('UNSUPPORTED_TEMPLATE_TAG', templatePath, `Unsupported template closing tag '{{${token}}}' in ${templatePath}`, 'error'));
         return;
       }
@@ -983,15 +997,16 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
       continue;
     }
 
-    if (token.startsWith('#if_eq ')) {
-      const expression = token.slice('#if_eq '.length).trim();
-      const parsed = parseIfEqExpression(expression);
+    const comparisonBlockTag = getComparisonBlockTag(token);
+    if (comparisonBlockTag) {
+      const expression = token.slice(`#${comparisonBlockTag} `.length).trim();
+      const parsed = parseComparisonExpression(expression, comparisonBlockTag);
       if (!parsed) {
         errors.push(issue('UNSUPPORTED_TEMPLATE_TAG', templatePath, `Unsupported template tag '{{${token}}}' in ${templatePath}`, 'error'));
         return;
       }
-      validateReservedPathUsage(parsed.path, templatePath, errors, stack, { isPartialFile });
-      stack.push({ tag: 'if_eq', hasElse: false });
+      validateComparisonPathUsage(parsed, templatePath, errors, stack, { isPartialFile });
+      stack.push({ tag: comparisonBlockTag, hasElse: false });
       continue;
     }
 
@@ -1038,15 +1053,142 @@ function validateReservedPathUsage(path, templatePath, errors, stack, options = 
   }
 }
 
-function parseIfEqExpression(expression) {
-  const match = IF_EQ_EXPRESSION_REGEX.exec(expression);
-  if (!match) {
+function validateComparisonPathUsage(parsed, templatePath, errors, stack, options) {
+  for (const operand of [parsed.left, ...parsed.operands]) {
+    if (operand.kind === 'path') {
+      validateReservedPathUsage(operand.path, templatePath, errors, stack, options);
+    }
+  }
+}
+
+function getComparisonBlockTag(token) {
+  for (const tagName of COMPARISON_BLOCK_TAGS) {
+    if (token.startsWith(`#${tagName} `)) {
+      return tagName;
+    }
+  }
+  return '';
+}
+
+function getComparisonElseIfTag(token) {
+  for (const tagName of COMPARISON_ELSE_IF_TAGS) {
+    if (token.startsWith(`#${tagName} `)) {
+      return tagName;
+    }
+  }
+  return '';
+}
+
+function parseComparisonExpression(expression, tagName) {
+  const operator = COMPARISON_TAG_OPERATORS[tagName];
+  let tokens;
+  try {
+    tokens = tokenizeExpression(expression);
+  } catch {
     return null;
   }
+
+  if (
+    !operator
+    || (operator === 'in' && tokens.length < 2)
+    || (operator !== 'in' && tokens.length !== 2)
+  ) {
+    return null;
+  }
+
+  const left = parsePathOperand(tokens[0]);
+  if (!left) {
+    return null;
+  }
+
+  const operands = [];
+  for (const token of tokens.slice(1)) {
+    const operand = parseComparisonOperand(token);
+    if (!operand) {
+      return null;
+    }
+    operands.push(operand);
+  }
+
   return {
-    path: match[1],
-    literal: match[2],
+    operator,
+    left,
+    operands,
   };
+}
+
+function tokenizeExpression(expression) {
+  const tokens = [];
+  let index = 0;
+
+  while (index < expression.length) {
+    while (/\s/.test(expression[index] || '')) {
+      index += 1;
+    }
+    if (index >= expression.length) {
+      break;
+    }
+
+    if (expression[index] === '"') {
+      const start = index;
+      index += 1;
+      let escaped = false;
+      while (index < expression.length) {
+        const char = expression[index];
+        if (escaped) {
+          escaped = false;
+        } else if (char === '\\') {
+          escaped = true;
+        } else if (char === '"') {
+          index += 1;
+          tokens.push(expression.slice(start, index));
+          break;
+        }
+        index += 1;
+      }
+      if (tokens[tokens.length - 1] !== expression.slice(start, index)) {
+        throw new Error(`Unclosed string literal in expression: ${expression}`);
+      }
+      continue;
+    }
+
+    const start = index;
+    while (index < expression.length && !/\s/.test(expression[index])) {
+      index += 1;
+    }
+    tokens.push(expression.slice(start, index));
+  }
+
+  return tokens;
+}
+
+function parsePathOperand(token) {
+  return TEMPLATE_PATH_REGEX.test(token) ? { kind: 'path', path: token } : null;
+}
+
+function parseComparisonOperand(token) {
+  if (token.startsWith('"')) {
+    try {
+      const value = JSON.parse(token);
+      return typeof value === 'string' ? { kind: 'literal', value } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  if (token === 'true') {
+    return { kind: 'literal', value: true };
+  }
+  if (token === 'false') {
+    return { kind: 'literal', value: false };
+  }
+  if (token === 'null') {
+    return { kind: 'literal', value: null };
+  }
+  if (NUMBER_LITERAL_REGEX.test(token)) {
+    return { kind: 'literal', value: Number(token) };
+  }
+  return parsePathOperand(token);
 }
 
 function validatePartialReferences(templateContents, partialContents, context) {
