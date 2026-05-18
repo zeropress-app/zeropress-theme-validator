@@ -6,23 +6,23 @@
 
 Shared validation core for ZeroPress theme manifests and directory-backed file maps.
 
-This package is the single source of truth for runtime theme validation used by:
+This package is the canonical runtime contract for theme packages consumed directly by:
 
 - [@zeropress/theme](https://www.npmjs.com/package/@zeropress/theme)
-- `backend_api_v2`
-- `themes.zeropress.org-api`
+- [@zeropress/build-core](https://www.npmjs.com/package/@zeropress/build-core)
+- [@zeropress/create-theme](https://www.npmjs.com/package/@zeropress/create-theme)
+- `zeropress-admin-api-v2`
 
-It implements the current runtime v0.6 validation rules defined in [ZeroPress Theme Runtime Spec v0.6](https://zeropress.dev/spec/theme-runtime-v0.6.html).
+Public contract references:
 
----
+- [Theme Runtime v0.6 Spec](https://zeropress.dev/spec/theme-runtime-v0.6.html)
+- [Theme Runtime v0.6 Schema](https://zeropress.dev/schemas/theme.v0.6.runtime.schema.json)
 
 ## Install
 
 ```bash
 npm install @zeropress/theme-validator
 ```
-
----
 
 ## Exports
 
@@ -36,7 +36,7 @@ import {
 } from '@zeropress/theme-validator';
 ```
 
-Schema exports:
+Schema export:
 
 ```js
 import runtimeSchemaUrl from '@zeropress/theme-validator/theme.v0.6.runtime.schema.json';
@@ -44,7 +44,18 @@ import runtimeSchemaUrl from '@zeropress/theme-validator/theme.v0.6.runtime.sche
 
 Published schema files are shipped from the package `schemas/` directory, and package subpath exports are versioned.
 
----
+`theme runtime v0.6` validates:
+
+- required manifest fields: `name`, `namespace`, `slug`, `version`, `license`, and `runtime`
+- v0.6-only runtime manifests
+- SPDX allowlisted licenses and `LicenseRef-*` identifiers
+- optional theme metadata such as `author`, `description`, `thumbnail`, and `links`
+- optional feature flags such as `comments`, `newsletter`, and `post_index`
+- optional `menu_slots`, `widget_areas`, `site_meta`, and `collection_slots` helper metadata
+- required theme files: `layout.html`, `index.html`, `post.html`, `page.html`, and `assets/style.css`
+- optional templates such as `archive.html`, `category.html`, and `tag.html` as warnings
+- template syntax, partial references, slot usage, and path safety
+- `layout.html` policy, including exactly one `{{slot:content}}` and no direct `<script>` tags
 
 ## API
 
@@ -197,22 +208,6 @@ Issue objects use this shape:
 ### Warnings
 
 - `archive.html`, `category.html`, `tag.html` missing
----
-
-## Requirements
-
-- Node.js >= 18.18.0
-- ESM only
-
----
-
-## Related
-
-- [@zeropress/theme](https://www.npmjs.com/package/@zeropress/theme)
-- [create-zeropress-theme](https://www.npmjs.com/package/create-zeropress-theme)
-- [ZeroPress Theme Runtime Spec v0.6](https://zeropress.dev/spec/theme-runtime-v0.6.html)
-
----
 
 ## License
 
