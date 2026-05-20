@@ -222,7 +222,7 @@
     },
     "features": {
       "description": "Optional theme capability flags exposed to the runtime and tooling.",
-      "markdownDescription": "Optional theme capability flags exposed to the runtime and tooling. These flags declare whether the theme is designed to support specific feature surfaces such as comments or newsletter islands.",
+      "markdownDescription": "Optional theme capability flags exposed to the runtime and tooling. These flags declare whether the theme is designed to support specific feature surfaces such as comments, newsletter islands, post indexes, or search UI.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -239,6 +239,11 @@
         "post_index": {
           "description": "Whether the theme supports post index routes.",
           "markdownDescription": "Whether the theme supports post index routes. When `false`, build tooling treats the post index as disabled even if preview data requests one.",
+          "type": "boolean"
+        },
+        "search": {
+          "description": "Whether the theme supports static search UI backed by ZeroPress search artifacts.",
+          "markdownDescription": "Whether the theme supports static search UI backed by ZeroPress search artifacts. Search support is opt-in; omitted behaves like `false`.",
           "type": "boolean"
         }
       }
@@ -335,7 +340,8 @@
       "features": {
         "comments": true,
         "newsletter": false,
-        "post_index": true
+        "post_index": true,
+        "search": false
       },
       "menu_slots": {
         "primary": {

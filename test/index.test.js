@@ -310,6 +310,7 @@ test('validateThemeFiles accepts valid features metadata', async () => {
       comments: true,
       newsletter: false,
       post_index: true,
+      search: true,
     },
   });
 
@@ -318,6 +319,7 @@ test('validateThemeFiles accepts valid features metadata', async () => {
   assert.equal(result.manifest?.features?.comments, true);
   assert.equal(result.manifest?.features?.newsletter, false);
   assert.equal(result.manifest?.features?.post_index, true);
+  assert.equal(result.manifest?.features?.search, true);
 });
 
 test('validateThemeFiles rejects unknown theme features', async () => {

@@ -75,7 +75,7 @@ export const MENU_SLOT_ID_MAX_LENGTH = 32;
 export const MENU_SLOT_COUNT_MAX = 12;
 export const MENU_SLOT_TITLE_MAX_LENGTH = 80;
 export const MENU_SLOT_DESCRIPTION_MAX_LENGTH = 160;
-const SUPPORTED_THEME_FEATURES = new Set(['comments', 'newsletter', 'post_index']);
+const SUPPORTED_THEME_FEATURES = new Set(['comments', 'newsletter', 'post_index', 'search']);
 const THEME_MANIFEST_KEYS = new Set([
   '$schema',
   'name',

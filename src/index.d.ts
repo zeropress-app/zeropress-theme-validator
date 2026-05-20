@@ -35,6 +35,7 @@ export interface ThemeManifest {
     comments?: boolean;
     newsletter?: boolean;
     post_index?: boolean;
+    search?: boolean;
   };
   menu_slots?: Record<string, {
     title: string;

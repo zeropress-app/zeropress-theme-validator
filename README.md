@@ -50,12 +50,21 @@ Published schema files are shipped from the package `schemas/` directory, and pa
 - v0.6-only runtime manifests
 - SPDX allowlisted licenses and `LicenseRef-*` identifiers
 - optional theme metadata such as `author`, `description`, `thumbnail`, and `links`
-- optional feature flags such as `comments`, `newsletter`, and `post_index`
+- optional feature flags such as `comments`, `newsletter`, `post_index`, and `search`
 - optional `menu_slots`, `widget_areas`, `site_meta`, and `collection_slots` helper metadata
 - required theme files: `layout.html`, `index.html`, `post.html`, `page.html`, and `assets/style.css`
 - optional templates such as `archive.html`, `category.html`, and `tag.html` as warnings
 - template syntax, partial references, slot usage, and path safety
 - `layout.html` policy, including exactly one `{{slot:content}}` and no direct `<script>` tags
+
+`features` is optional. Omitted feature flags use per-feature runtime defaults:
+
+| Feature | Omitted behavior |
+| --- | --- |
+| `comments` | `false` |
+| `newsletter` | No core build behavior |
+| `post_index` | `true` |
+| `search` | `false` |
 
 ## API
 
