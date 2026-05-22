@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://zeropress.dev/schemas/theme.v0.6.runtime.schema.json",
+  "$id": "https://schemas.zeropress.dev/theme-runtime/v0.6/schema.json",
   "title": "ZeroPress Theme Manifest (Runtime v0.6)",
   "description": "Metadata manifest for a ZeroPress theme that targets the v0.6 runtime.",
   "type": "object",

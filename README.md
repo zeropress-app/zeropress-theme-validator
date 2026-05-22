@@ -16,7 +16,7 @@ This package is the canonical runtime contract for theme packages consumed direc
 Public contract references:
 
 - [Theme Runtime v0.6 Spec](https://zeropress.dev/spec/theme-runtime-v0.6.html)
-- [Theme Runtime v0.6 Schema](https://zeropress.dev/schemas/theme.v0.6.runtime.schema.json)
+- [Theme Runtime v0.6 Schema](https://schemas.zeropress.dev/theme-runtime/v0.6/schema.json)
 
 ## Install
 

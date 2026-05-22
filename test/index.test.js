@@ -96,7 +96,7 @@ test('validateNamespace and validateSlug share runtime rules', () => {
 
 test('validateThemeManifest validates manifest-only input', () => {
   const result = validateThemeManifest({
-    $schema: 'https://zeropress.dev/schemas/theme.v0.6.runtime.schema.json',
+    $schema: 'https://schemas.zeropress.dev/theme-runtime/v0.6/schema.json',
     name: 'Test Theme',
     namespace: 'test-studio',
     slug: 'test-theme',
