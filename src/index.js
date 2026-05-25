@@ -580,7 +580,7 @@ export async function validateThemeFiles(fileMap, options = {}) {
     }
     const content = getText(files.get(templatePath));
     templateContents.set(templatePath, content);
-    validateTemplateSyntax(templatePath, content, { errors, runtime: manifest?.runtime || DEFAULT_RUNTIME });
+    validateTemplateSyntax(templatePath, content, { errors, warnings, runtime: manifest?.runtime || DEFAULT_RUNTIME });
   }
 
   for (const [filePath, value] of files.entries()) {
@@ -591,7 +591,7 @@ export async function validateThemeFiles(fileMap, options = {}) {
     const partialName = filePath.slice('partials/'.length, -'.html'.length);
     const content = getText(value);
     partialContents.set(partialName, content);
-    validateTemplateSyntax(filePath, content, { errors, runtime: manifest?.runtime || DEFAULT_RUNTIME });
+    validateTemplateSyntax(filePath, content, { errors, warnings, runtime: manifest?.runtime || DEFAULT_RUNTIME });
   }
 
   validatePartialReferences(templateContents, partialContents, { errors, runtime: manifest?.runtime || DEFAULT_RUNTIME });
@@ -833,11 +833,23 @@ function validateManifest(themeJson) {
 }
 
 function validateTemplateSyntax(templatePath, content, context) {
-  const { errors } = context;
+  const { errors, warnings = [] } = context;
   const slotRegex = /\{\{slot:([a-zA-Z0-9_-]+)\}\}/g;
   const contentSlotMatches = content.match(/\{\{slot:content\}\}/g) || [];
 
   if (templatePath === 'layout.html') {
+    if (!startsWithHtmlDoctype(content)) {
+      warnings.push(issue(
+        'MISSING_DOCTYPE',
+        'layout.html',
+        'layout.html should start with <!doctype html> to keep browsers in standards mode',
+        'warning',
+        {
+          category: 'theme_validation',
+          hint: 'Add <!doctype html> before the opening <html> tag.',
+        },
+      ));
+    }
     if (contentSlotMatches.length !== 1) {
       errors.push(issue('INVALID_LAYOUT_SLOT', 'layout.html', 'layout.html must contain exactly one {{slot:content}}', 'error'));
     }
@@ -871,6 +883,10 @@ function validateTemplateSyntax(templatePath, content, context) {
   }
 
   validateRuntimeV05TemplateSyntax(templatePath, content, errors);
+}
+
+function startsWithHtmlDoctype(content) {
+  return /^\s*(?:<!--[\s\S]*?-->\s*)*<!doctype\s+html\s*>/i.test(content);
 }
 
 function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {

@@ -1028,6 +1028,38 @@ test('validateThemeFiles warns on missing optional templates', async () => {
   assert.equal(result.warnings.some((issue) => issue.code === 'MISSING_OPTIONAL_TEMPLATE' && issue.path === 'archive.html'), true);
 });
 
+test('validateThemeFiles warns when layout.html has no doctype', async () => {
+  const files = createValidThemeFiles();
+  files['layout.html'] = [
+    '<html>',
+    '<body>',
+    '<main>{{slot:content}}</main>',
+    '</body>',
+    '</html>',
+  ].join('\n');
+  const result = await validateThemeFiles(files);
+  const issue = result.warnings.find((entry) => entry.code === 'MISSING_DOCTYPE');
+  assert.equal(result.ok, true);
+  assert.equal(issue?.path, 'layout.html');
+  assert.equal(issue?.category, 'theme_validation');
+  assert.match(issue?.hint || '', /<!doctype html>/);
+});
+
+test('validateThemeFiles accepts doctype after leading comments', async () => {
+  const files = createValidThemeFiles();
+  files['layout.html'] = [
+    '<!-- theme shell -->',
+    '<!DOCTYPE html>',
+    '<html>',
+    '<body>',
+    '<main>{{slot:content}}</main>',
+    '</body>',
+    '</html>',
+  ].join('\n');
+  const result = await validateThemeFiles(files);
+  assert.equal(result.warnings.some((issue) => issue.code === 'MISSING_DOCTYPE'), false);
+});
+
 test('validateThemeFiles reports path traversal and symlink escape', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zp-validator-'));
   const outside = await fs.mkdtemp(path.join(os.tmpdir(), 'zp-validator-outside-'));
