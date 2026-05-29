@@ -2,7 +2,7 @@ export interface ValidationIssue {
   code: string;
   path: string;
   message: string;
-  severity: 'error' | 'warning';
+  severity: 'error' | 'warning' | 'info';
   line?: number;
   column?: number;
   hint?: string;
@@ -73,6 +73,7 @@ export interface ValidationResult {
   ok: boolean;
   errors: ValidationIssue[];
   warnings: ValidationIssue[];
+  infos: ValidationIssue[];
   manifest?: ThemeManifest;
   checkedFiles: number;
 }

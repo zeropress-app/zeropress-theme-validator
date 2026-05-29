@@ -1021,11 +1021,13 @@ test('validateThemeFiles reports script tags in layout.html', async () => {
   assert.match(issue?.snippet?.pointer || '', /\^/);
 });
 
-test('validateThemeFiles warns on missing optional templates', async () => {
+test('validateThemeFiles reports missing optional templates as info', async () => {
   const files = createValidThemeFiles();
   delete files['archive.html'];
   const result = await validateThemeFiles(files);
-  assert.equal(result.warnings.some((issue) => issue.code === 'MISSING_OPTIONAL_TEMPLATE' && issue.path === 'archive.html'), true);
+  assert.equal(result.warnings.some((issue) => issue.code === 'MISSING_OPTIONAL_TEMPLATE'), false);
+  assert.equal(result.infos.some((issue) => issue.code === 'MISSING_OPTIONAL_TEMPLATE' && issue.path === 'archive.html'), true);
+  assert.equal(result.infos.find((issue) => issue.code === 'MISSING_OPTIONAL_TEMPLATE')?.severity, 'info');
 });
 
 test('validateThemeFiles warns when layout.html has no doctype', async () => {

@@ -526,6 +526,7 @@ export async function validateThemeFiles(fileMap, options = {}) {
   const files = normalizeFileMap(fileMap);
   const errors = [];
   const warnings = [];
+  const infos = [];
 
   validatePathSafety(options.pathEntries || [], errors);
 
@@ -543,7 +544,7 @@ export async function validateThemeFiles(fileMap, options = {}) {
 
   for (const template of OPTIONAL_TEMPLATES) {
     if (!files.has(template)) {
-      warnings.push(issue('MISSING_OPTIONAL_TEMPLATE', template, `Optional template '${template}' is missing`, 'warning'));
+      infos.push(issue('MISSING_OPTIONAL_TEMPLATE', template, `Optional template '${template}' is missing`, 'info'));
     }
   }
 
@@ -580,7 +581,7 @@ export async function validateThemeFiles(fileMap, options = {}) {
     }
     const content = getText(files.get(templatePath));
     templateContents.set(templatePath, content);
-    validateTemplateSyntax(templatePath, content, { errors, warnings, runtime: manifest?.runtime || DEFAULT_RUNTIME });
+    validateTemplateSyntax(templatePath, content, { errors, warnings, infos, runtime: manifest?.runtime || DEFAULT_RUNTIME });
   }
 
   for (const [filePath, value] of files.entries()) {
@@ -591,7 +592,7 @@ export async function validateThemeFiles(fileMap, options = {}) {
     const partialName = filePath.slice('partials/'.length, -'.html'.length);
     const content = getText(value);
     partialContents.set(partialName, content);
-    validateTemplateSyntax(filePath, content, { errors, warnings, runtime: manifest?.runtime || DEFAULT_RUNTIME });
+    validateTemplateSyntax(filePath, content, { errors, warnings, infos, runtime: manifest?.runtime || DEFAULT_RUNTIME });
   }
 
   validatePartialReferences(templateContents, partialContents, { errors, runtime: manifest?.runtime || DEFAULT_RUNTIME });
@@ -599,6 +600,7 @@ export async function validateThemeFiles(fileMap, options = {}) {
     ok: errors.length === 0,
     errors,
     warnings,
+    infos,
     manifest,
     checkedFiles: options.checkedFiles ?? files.size,
   };

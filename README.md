@@ -53,7 +53,7 @@ Published schema files are shipped from the package `schemas/` directory, and pa
 - optional feature flags such as `comments`, `newsletter`, `post_index`, and `search`
 - optional `menu_slots`, `widget_areas`, `site_meta`, and `collection_slots` helper metadata
 - required theme files: `layout.html`, `index.html`, `post.html`, `page.html`, and `assets/style.css`
-- optional templates such as `archive.html`, `category.html`, and `tag.html` as warnings
+- optional templates such as `archive.html`, `category.html`, and `tag.html` as informational notes
 - template syntax, partial references, slot usage, and path safety
 - `layout.html` policy, including exactly one `{{slot:content}}` and no direct `<script>` tags
 
@@ -128,6 +128,7 @@ const result = await validateThemeFiles(files, {
   ok: true,
   errors: [],
   warnings: [],
+  infos: [],
   manifest: {
     name: 'My Theme',
     namespace: 'my-studio',
@@ -178,6 +179,8 @@ Issue objects use this shape:
 }
 ```
 
+`severity` is one of `error`, `warning`, or `info`.
+
 ---
 
 ## Validation Profile
@@ -215,6 +218,10 @@ Issue objects use this shape:
 - Path traversal or symlink escape
 
 ### Warnings
+
+- `layout.html` does not start with `<!doctype html>`
+
+### Info
 
 - `archive.html`, `category.html`, `tag.html` missing
 
