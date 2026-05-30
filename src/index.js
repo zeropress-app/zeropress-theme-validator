@@ -977,8 +977,7 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
     const comparisonElseIfTag = getComparisonElseIfTag(token);
     if (comparisonElseIfTag) {
       const current = stack[stack.length - 1];
-      const expectedBlockTag = comparisonElseIfTag.replace(/^else_/, '');
-      if (!current || current.tag !== expectedBlockTag) {
+      if (!current || !COMPARISON_BLOCK_TAGS.has(current.tag)) {
         errors.push(issue('UNEXPECTED_TEMPLATE_ELSE_IF', templatePath, `Unexpected {{${token}}} in ${templatePath}`, 'error'));
         return;
       }
@@ -1023,7 +1022,11 @@ function validateRuntimeV05TemplateSyntax(templatePath, content, errors) {
       }
 
       const current = stack.pop();
-      if (!current || current.tag !== closingTag) {
+      const closesCurrentBlock = current && (
+        current.tag === closingTag
+        || (closingTag === 'if' && COMPARISON_BLOCK_TAGS.has(current.tag))
+      );
+      if (!closesCurrentBlock) {
         errors.push(issue('INVALID_TEMPLATE_BLOCK', templatePath, `Mismatched closing tag '{{${token}}}' in ${templatePath}`, 'error'));
         return;
       }
